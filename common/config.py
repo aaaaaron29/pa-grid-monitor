@@ -23,6 +23,7 @@ class Settings(BaseSettings):
 
     # --- Storage ---
     postgres_dsn: str = "postgresql://pjm_grid_watch:pjm_grid_watch@localhost:5432/pjm_grid_watch"
+    kafka_bootstrap_servers: str = "localhost:9092"
 
     # --- App ---
     environment: str = "development"
