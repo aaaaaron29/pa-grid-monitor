@@ -145,3 +145,36 @@ def test_retries_on_429_then_succeeds(load_fixture, monkeypatch):
 
     assert page["totalRows"] == 2
     assert len(responses.calls) == 2
+
+
+@responses.activate
+def test_use_custom_sort_false_omits_sort_and_order_from_body(load_fixture):
+    """Regression guard: confirmed live that PJM's archived data (anything past
+    archiveCutoffDays) rejects a request carrying a custom sort/order with HTTP 400
+    ("invalid attribute(s) for archived data") — the fix is to omit those keys entirely,
+    not send some "default" value, when querying a range that might be archived."""
+    responses.add(
+        responses.POST, FEED_URL, json=load_fixture("pjm_response_page1.json"), status=200
+    )
+
+    fetch_page(
+        api_key="k",
+        feed=FEED,
+        datetime_filter="2024-01-01T00:00 to 2024-01-01T01:00",
+        use_custom_sort=False,
+    )
+
+    body = json_mod.loads(responses.calls[0].request.body)
+    assert "sort" not in body
+    assert "order" not in body
+
+
+@responses.activate
+def test_use_custom_sort_true_is_still_the_default():
+    responses.add(responses.POST, FEED_URL, json={"items": [], "totalRows": 0}, status=200)
+
+    fetch_page(api_key="k", feed=FEED, datetime_filter="5minutesago")
+
+    body = json_mod.loads(responses.calls[0].request.body)
+    assert body["sort"] == "datetime_beginning_ept"
+    assert body["order"] == 1

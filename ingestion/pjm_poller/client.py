@@ -94,6 +94,7 @@ def fetch_page(
     datetime_filter: str,
     datetime_field: str = "datetime_beginning_ept",
     pnode_ids: list[int] | None = None,
+    use_custom_sort: bool = True,
     start_row: int = 1,
     row_count: int = _MAX_ROW_COUNT,
 ) -> dict[str, Any]:
@@ -105,12 +106,24 @@ def fetch_page(
     "datetime_beginning_ept" and "datetime_beginning_utc" accept it; default is EPT since
     that's what PJM's own relative keywords ("5minutesago") were demonstrated against,
     fetch_range_for_date overrides it to UTC since it builds absolute UTC timestamps.
-    `sort` is always `datetime_beginning_ept` regardless — confirmed live that
-    `datetime_beginning_utc` is filterable but NOT sortable (its column metadata has no
-    enableSorting flag; sorting by it returns HTTP 400 "Sort field is not sortable").
+    When `use_custom_sort` is True, sort is always `datetime_beginning_ept` regardless of
+    `datetime_field` — confirmed live that `datetime_beginning_utc` is filterable but NOT
+    sortable (its column metadata has no enableSorting flag; sorting by it returns HTTP 400
+    "Sort field is not sortable").
+
     `pnode_ids` filters server-side to a single zone when given (one `pnode_id` filter per
     call — the API takes one value per filter object, not a list); omit to pull every node
     in the interval and filter client-side via common.normalize_pjm.
+
+    `use_custom_sort=False` AND `pnode_ids=None` together are required once a query reaches
+    PJM's "archived" window (confirmed live: `rt_fivemin_hrl_lmps` archives data after
+    `archiveCutoffDays` — 186 in its metadata as of 2026-10-13, ~6 months, not the "two
+    years" originally assumed from the feed's prose description). An archived-data request
+    with either a pnode_id filter or a custom sort/order gets a 400: "The API request
+    contains invalid attribute(s) for archived data." Backfill (ingestion/backfill/
+    pjm_backfill.py) therefore never sends either — it's the one caller that routinely
+    queries data old enough to be archived, and omitting both works for recent data too,
+    just at the cost of a bigger per-request result set filtered client-side.
     """
     filters: list[dict[str, Any]] = [{datetime_field: datetime_filter}]
     if pnode_ids:
@@ -118,13 +131,15 @@ def fetch_page(
             raise ValueError("PJM's filter takes one pnode_id per request; call once per zone")
         filters.append({"pnode_id": pnode_ids[0]})
 
-    body = {
+    body: dict[str, Any] = {
         "rowCount": min(row_count, _MAX_ROW_COUNT),
         "startRow": start_row,
         "filters": filters,
-        "sort": "datetime_beginning_ept",
-        "order": 1,
     }
+    if use_custom_sort:
+        body["sort"] = "datetime_beginning_ept"
+        body["order"] = 1
+
     headers = {"Ocp-Apim-Subscription-Key": api_key, "Content-Type": "application/json"}
     data = _post_with_retry(f"{BASE_URL}/{feed}", body, headers)
     if "items" not in data:
@@ -139,12 +154,14 @@ def fetch_range(
     datetime_filter: str,
     datetime_field: str = "datetime_beginning_ept",
     pnode_ids: list[int] | None = None,
+    use_custom_sort: bool = True,
     row_count: int = _MAX_ROW_COUNT,
 ) -> Iterator[dict[str, Any]]:
     """Yields raw row dicts across the full result set for one datetime_filter, paginating
     past the row-count cap automatically. For a single zone, pass a one-element pnode_ids;
     for all five, call this once per zone (PJM's filter doesn't support an IN-list) or omit
-    pnode_ids and filter client-side on the (typically few thousand) rows per interval."""
+    pnode_ids and filter client-side on the (typically few thousand) rows per interval — the
+    latter is required once the range might be archived (see fetch_page)."""
     start_row = 1
     while True:
         page = fetch_page(
@@ -153,6 +170,7 @@ def fetch_range(
             datetime_filter=datetime_filter,
             datetime_field=datetime_field,
             pnode_ids=pnode_ids,
+            use_custom_sort=use_custom_sort,
             start_row=start_row,
             row_count=row_count,
         )
@@ -173,6 +191,7 @@ def fetch_range_for_date(
     start: datetime,
     end: datetime,
     pnode_ids: list[int] | None = None,
+    use_custom_sort: bool = True,
     row_count: int = _MAX_ROW_COUNT,
 ) -> Iterator[dict[str, Any]]:
     """Convenience wrapper building PJM's "X to Y" range syntax from two UTC datetimes,
@@ -185,5 +204,6 @@ def fetch_range_for_date(
         datetime_filter=datetime_filter,
         datetime_field="datetime_beginning_utc",
         pnode_ids=pnode_ids,
+        use_custom_sort=use_custom_sort,
         row_count=row_count,
     )

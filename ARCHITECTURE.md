@@ -401,11 +401,29 @@ an afterthought.
   onward (sub-regional/by-source data starts July 2018, so 2019 is a clean full-year
   boundary). That is roughly 60k hourly rows, trivial for Postgres. Paginate around the
   API's 5,000-row response cap.
-- **PJM (once provisioned):** 5-minute RT LMP for the five PA zones, **2+ years**, on the
-  order of a million rows. **Measure the per-request page size before assuming a duration:**
-  Data Miner serves paged date-range downloads, so at a large page size this is a few dozen
-  requests (minutes), and at a small one the 6 req/min non-member ceiling turns it into an
-  overnight job. Check this in Phase 1, run it once, and don't re-pull casually either way.
+- **PJM: confirmed live (2026-10-13) that deep history is genuinely expensive, not just
+  slow.** The original "2+ years" target assumed server-side zone filtering stayed available
+  throughout; it doesn't. `rt_fivemin_hrl_lmps` archives data after `archiveCutoffDays`
+  (186 in its live metadata, about 6 months, not the "two years" its prose description
+  implies). Past that boundary, PJM rejects both a `pnode_id` filter and a custom sort/order
+  on the same request, so there is no server-side way to narrow to the 5 PA zones: every
+  request returns all ~14,700 PJM nodes for whatever interval it covers, and the 5 zone rows
+  get picked out client-side. Even at the coarsest (hourly) grain that's roughly 3 pages per
+  hour just to enumerate everything once, so a year of archived hourly history is on the
+  order of 26,000 requests, about 3.5 days at the 11-second pacing this project's PJM client
+  enforces to respect the 6 req/min non-member limit (confirmed by tripping a 429 during
+  testing).
+  - **Default backfill clamps to the non-archived window** (~170 days with a safety margin),
+    where the fast, zone-filtered, 5-minute-granularity path applies, proven live: 30 days
+    x 5 zones backfilled in well under 15 minutes, exactly 8,640 rows per zone per 30-day
+    chunk as expected.
+  - **Deeper history is possible, not automatic.** `run_archived_backfill` (ingestion/
+    backfill/pjm_backfill.py) implements the slow, all-nodes, hourly path correctly and is
+    tested, but is multi-day by design and meant to be launched deliberately as a long-lived
+    background job, never bundled into routine setup.
+  - **Net effect on the model:** PJM's effective training window is shorter than EIA's
+    unless someone explicitly runs the archived backfill. That's an honest limitation to
+    state in the methodology write-up (Section 6), not a bug to hide.
 
 ### Train/validation/test split
 
