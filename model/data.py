@@ -17,17 +17,24 @@ from __future__ import annotations
 import pandas as pd
 import psycopg
 
-# Sanity bounds for PJM-wide hourly demand (MW). Confirmed live (2026-10-13): 3 rows out of
-# 68,226 (around 2021-10-18/19) had values in the hundreds-of-millions to 2.1 billion MW
-# range -- 2,147,480,000 is suspiciously close to 2^31-1, a classic 32-bit sentinel/overflow
-# value, strongly suggesting a data-quality incident on EIA's own side, not anything in this
-# project's ingestion path. PJM's actual all-time peak demand is roughly 165,000 MW (summer
-# 2006); 250,000 MW leaves generous headroom above any plausible real reading while sitting
-# nowhere near the garbage values actually observed. Values outside these bounds are treated
-# as gaps (NaN) before apply_missing_data_policy runs, so a single implausible reading flows
-# through the exact same fill/exclude logic as any other missing hour -- no separate code path.
-MIN_PLAUSIBLE_MW = 1_000
-MAX_PLAUSIBLE_MW = 250_000
+# Sanity bounds per EIA reading_type (MW). Confirmed live (2026-10-13): the same sentinel
+# incident hit BOTH demand (D) and net generation (NG) -- 3 rows each, same exact
+# 2,147,480,000 value, suspiciously close to 2^31-1, a classic 32-bit overflow/sentinel,
+# strongly suggesting a data-quality incident on EIA's own side, not anything in this
+# project's ingestion path. D and NG share demand-scale bounds (PJM's actual all-time peak
+# demand is roughly 165,000 MW, summer 2006; generation tracks demand closely in a
+# self-sufficient RTO). Total interchange (TI) is legitimately SIGNED -- observed live range
+# is -4,456 to 15,772 MW, ordinary imports/exports -- so reusing the demand floor would wrongly
+# mask every negative (but completely normal) interchange hour. TI gets a wide, symmetric band
+# that only catches genuinely overflow-scale garbage, not real interchange swings.
+# Values outside these bounds are treated as gaps (NaN) before apply_missing_data_policy
+# runs, so a single implausible reading flows through the exact same fill/exclude logic as
+# any other missing hour -- no separate code path.
+PLAUSIBLE_BOUNDS_MW: dict[str, tuple[float, float]] = {
+    "D": (1_000, 250_000),
+    "NG": (1_000, 250_000),
+    "TI": (-100_000, 100_000),
+}
 
 _QUERY = """
 SELECT period_start, value_mw, quality
@@ -38,10 +45,19 @@ ORDER BY period_start
 """
 
 
-def mask_implausible(series: pd.Series) -> pd.Series:
-    """Pure function: anything outside [MIN_PLAUSIBLE_MW, MAX_PLAUSIBLE_MW] becomes NaN, same
-    as any other gap. Split out from load_eia_series so this is unit-testable without a DB."""
-    implausible = (series < MIN_PLAUSIBLE_MW) | (series > MAX_PLAUSIBLE_MW)
+def mask_implausible(series: pd.Series, reading_type: str) -> pd.Series:
+    """Pure function: anything outside PLAUSIBLE_BOUNDS_MW[reading_type] becomes NaN, same
+    as any other gap. Split out from load_eia_series so this is unit-testable without a DB.
+    Bounds are reading-type-specific on purpose (see PLAUSIBLE_BOUNDS_MW) — TI is legitimately
+    signed, D/NG are not, reusing one bound for all three was the original (wrong) version."""
+    try:
+        low, high = PLAUSIBLE_BOUNDS_MW[reading_type]
+    except KeyError:
+        raise ValueError(
+            f"no plausibility bounds defined for reading_type={reading_type!r}; "
+            f"add one to PLAUSIBLE_BOUNDS_MW before using this reading type"
+        ) from None
+    implausible = (series < low) | (series > high)
     return series.mask(implausible)
 
 
@@ -78,7 +94,7 @@ def load_eia_series(
     df = df[df["quality"] == "ok"][["period_start", "value_mw"]]
     series = df.set_index("period_start")["value_mw"].sort_index()
 
-    series = mask_implausible(series)
+    series = mask_implausible(series, reading_type)
 
     full_index = pd.date_range(start=start, end=end, freq="h", inclusive="left", tz="UTC")
     return series.reindex(full_index)

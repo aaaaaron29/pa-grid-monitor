@@ -464,12 +464,27 @@ silently wrong.
   against live data (2026-10-13).** 3 rows out of 68,226 had demand values up to
   2,147,480,000 MW, suspiciously close to 2^31-1, a classic 32-bit overflow/sentinel
   value, strongly suggesting a data-quality incident on EIA's own side rather than anything
-  in this project's ingestion path. These are present, not missing, so the gap policy above
-  never touched them; a naive baseline trained on raw values had its MAPE corrupted from a
-  plausible ~11% to ~88% by three rows. Fix: `model/data.py` masks anything outside
-  [1,000, 250,000] MW to NaN before the missing-data policy runs (PJM's actual all-time peak
-  demand is roughly 165,000 MW, so 250,000 leaves generous headroom), so an implausible
-  reading flows through the exact same fill/exclude logic as any other gap.
+  in this project's ingestion path (the same incident hit net generation too, same 3 rows,
+  same exact value). These are present, not missing, so the gap policy above never touched
+  them; a naive baseline trained on raw values had its MAPE corrupted from a plausible ~11%
+  to ~88% by three rows. Fix: `model/data.py`'s `PLAUSIBLE_BOUNDS_MW` masks anything outside
+  a sane range to NaN before the missing-data policy runs, per reading type, so an
+  implausible reading flows through the exact same fill/exclude logic as any other gap.
+  **Bounds are reading-type-specific on purpose, confirmed necessary live:** demand and net
+  generation share [1,000, 250,000] MW (PJM's actual all-time peak is roughly 165,000 MW),
+  but total interchange is legitimately signed (observed live range: -4,456 to 15,772 MW,
+  ordinary imports/exports) and gets a wide symmetric band instead, [-100,000, 100,000],
+  reusing the demand floor there would wrongly mask most interchange hours, since negative
+  is the normal case, not an error.
+  - **This masking approach does NOT transfer to PJM LMP data, and must not be copied
+    there.** Checked live: PJM zone prices range from about -$611/MWh to +$4,251/MWh across
+    the five PA zones, with no sentinel-style garbage observed. Both extremes are genuine
+    electricity-market phenomena, not errors: negative prices happen during oversupply
+    (high renewable output, low demand), spikes happen during genuine scarcity. Those
+    extremes are exactly the signal the anomaly detector exists to find; clipping them the
+    way EIA demand is clipped here would delete the thing the private tier is built to
+    surface. Any PJM-side data-quality check needs its own, separate reasoning, not a
+    copy-paste of this EIA-specific one.
 
 ### Evaluating an unsupervised detector (the honest version)
 

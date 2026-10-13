@@ -3,12 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from model.data import (
-    MAX_PLAUSIBLE_MW,
-    MIN_PLAUSIBLE_MW,
-    apply_missing_data_policy,
-    mask_implausible,
-)
+from model.data import PLAUSIBLE_BOUNDS_MW, apply_missing_data_policy, mask_implausible
 
 
 def _hourly_index(n: int, start: str = "2024-01-01"):
@@ -19,26 +14,45 @@ def test_mask_implausible_catches_sentinel_values():
     """Regression guard: this is the exact real-data incident found running Phase 2 against
     live data — 3 rows out of 68,226 had values up to 2,147,480,000 MW (suspiciously close
     to 2^31-1, a classic 32-bit overflow sentinel), which silently corrupted a baseline's
-    MAPE from ~11% to ~88% before this filter existed."""
+    MAPE from ~11% to ~88% before this filter existed. Confirmed live it hit both D and NG."""
     series = pd.Series([85000.0, 90000.0, 2_147_480_000.0, 88000.0], index=_hourly_index(4))
 
-    masked = mask_implausible(series)
+    masked = mask_implausible(series, "D")
 
     assert masked.iloc[2] != masked.iloc[2]  # NaN
     assert list(masked.dropna()) == [85000.0, 90000.0, 88000.0]
 
 
 def test_mask_implausible_leaves_normal_demand_alone():
-    series = pd.Series([MIN_PLAUSIBLE_MW + 1, MAX_PLAUSIBLE_MW - 1], index=_hourly_index(2))
-    masked = mask_implausible(series)
+    low, high = PLAUSIBLE_BOUNDS_MW["D"]
+    series = pd.Series([low + 1, high - 1], index=_hourly_index(2))
+    masked = mask_implausible(series, "D")
     assert masked.equals(series)
 
 
 def test_mask_implausible_catches_too_low_too():
     series = pd.Series([0.5, 50000.0], index=_hourly_index(2))
-    masked = mask_implausible(series)
+    masked = mask_implausible(series, "D")
     assert masked.isna().iloc[0]
     assert masked.iloc[1] == 50000.0
+
+
+def test_mask_implausible_does_not_mask_normal_negative_interchange():
+    """Regression guard: TI (interchange) is legitimately signed — confirmed live, observed
+    range is -4,456 to 15,772 MW, ordinary imports/exports. Reusing D's floor (which treats
+    anything below 1,000 as implausible) would wrongly mask every negative interchange hour,
+    which is most of them in practice."""
+    series = pd.Series([-4456.0, -100.0, 0.0, 15772.0], index=_hourly_index(4))
+    masked = mask_implausible(series, "TI")
+    assert masked.equals(series)  # nothing masked; all of this is ordinary
+
+
+def test_mask_implausible_unknown_reading_type_raises():
+    import pytest
+
+    series = pd.Series([100.0], index=_hourly_index(1))
+    with pytest.raises(ValueError):
+        mask_implausible(series, "NOT_A_REAL_TYPE")
 
 
 def test_apply_missing_data_policy_forward_fills_short_gap():
