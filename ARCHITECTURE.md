@@ -53,8 +53,17 @@ risk (information from the future leaking into training).
   `accountmanager@pjm.com` with the exact statement *"I confirm that the PJM Data will be
   used for internal business purposes only,"* including your Account Manager user id and the
   email used to subscribe. PJM then manually provisions non-member API access — expect a
-  human-review turnaround delay. Do this first, well before you plan to start coding, not the
-  night you want to start Phase 1.
+  human-review turnaround delay. **Status: confirmation email has been sent** — waiting on
+  PJM's manual provisioning; don't block Phase 1 on this, start with the public (EIA) tier
+  while it's pending.
+- **Grafana's public-sharing feature is confirmed available in OSS, no extra licensing
+  needed.** It's officially called "Externally Shared Dashboards" (formerly "Public
+  Dashboards") as of recent Grafana versions, enabled by default, and works per-dashboard —
+  exactly the isolation this design needs. Requires Admin or the `dashboards.public:write`
+  permission to enable on a given dashboard. Note the mechanism: a shared dashboard re-runs
+  its stored queries against the live datasource on each public view, so make certain the
+  "Public" dashboard's queries only ever touch the `eia_readings` table — never point a
+  public-shared panel at anything PJM-sourced.
 - **Non-member redistribution restriction (confirmed from PJM's actual Data Miner 2 Terms of
   Use, Section 1):** "Members may republish data, however non-members are specifically
   prohibited from republishing data." Without an Associate Membership (a paid, company-level
@@ -98,6 +107,15 @@ risk (information from the future leaking into training).
 - **PJM "real-time" LMP data refreshes on a 5-minute cadence**, not sub-second — "streaming"
   here means polling-to-Kafka at that cadence, not a true continuous event stream. Be
   accurate about this in the project's documentation.
+- **Oracle gives new instances an ephemeral public IP by default, which changes if the VNIC
+  is detached or the instance is recreated** — this would silently break a public link.
+  Always Free allows up to 2 **Reserved** Public IPv4 addresses at no cost, as long as one
+  stays attached to a running instance. Explicitly create and attach a Reserved Public IP
+  during Phase 5 deploy — don't rely on the default ephemeral one.
+- **EIA-930 historical depth is confirmed sufficient for a time-based split:** most fields go
+  back to July 2015 (sub-regional demand and generation-by-source specifically back to July
+  2018) — more than enough history to train on an older window and evaluate on a recent one
+  without resorting to a short, thin dataset.
 
 ## 4. Data sources
 
@@ -195,6 +213,20 @@ Prometheus scrapes /metrics from both pollers + both inference services.
 All of the above runs as Kubernetes workloads (k3s) on a single Oracle Cloud Always Free VM.
 Docker Compose reproduces the same stack locally for day-to-day development.
 
+### Public access: domain + TLS
+
+A bare Oracle IP doesn't give you clean HTTPS, and a raw `https://1.2.3.4` link looks
+unfinished. Plan:
+
+1. Reserve a Oracle Cloud **Reserved Public IP** (see risks above) and attach it to the VM.
+2. Register a free subdomain pointed at that IP — a free dynamic-DNS provider (e.g. DuckDNS)
+   is the simplest option and takes minutes.
+3. k3s ships with Traefik as its default ingress controller — use it (or add cert-manager)
+   to terminate TLS automatically via Let's Encrypt against that subdomain.
+4. Only route the subdomain to Grafana's public-shared-dashboard URL (the specific public
+   tier dashboard) — don't expose the rest of the Grafana instance, Kafka, or Postgres
+   through the ingress at all.
+
 ## 6. Proposed repo structure
 
 ```
@@ -230,7 +262,9 @@ README.md             documents the public/private data split explicitly for any
    shared via Grafana's public-dashboard link feature) and the private one (PJM zone data +
    data-center correlation, authenticated access only). Double-check the public dashboard
    genuinely has zero PJM-sourced panels before enabling its public link.
-5. **Deploy** — Kubernetes manifests, Oracle Cloud VM + k3s, live 24/7.
+5. **Deploy** — Kubernetes manifests, Oracle Cloud VM + k3s, live 24/7. Reserve the Oracle
+   Public IP, point a free subdomain at it, wire up Traefik/cert-manager for Let's Encrypt
+   TLS (see "Public access: domain + TLS" above) before calling the public link done.
 6. **Stretch** (in priority order) — CI/CD auto-deploy, Slack/email alerting, Terraform IaC.
 
 ## 8. Steps to complete before building starts
@@ -238,26 +272,24 @@ README.md             documents the public/private data split explicitly for any
 These are the only external dependencies — everything else (Kafka, Postgres, Grafana, k3s,
 Docker, GitHub Actions) is self-installed later and needs no advance signup.
 
-1. **Register for an EIA API key** — `eia.gov/opendata`, free, instant, no approval wait.
-   Unblocks the entire public tier immediately.
+1. ✅ **EIA API key** — obtained and saved securely (not in the repo).
 2. **Create a PJM Tools account** — via `accountmanager.pjm.com/accountmanager/pages/public/new-user.jsf`
    or `apiportal.pjm.com`. This alone does not grant API access yet.
-3. **Send the non-member provisioning email** — to `accountmanager@pjm.com`, containing:
-   - The exact statement: *"I confirm that the PJM Data will be used for internal business
-     purposes only."*
-   - Your Account Manager user id
-   - The email address you used to register
-   Do this as early as possible — turnaround time is unknown and this is the one step with
-   external human review. Don't wait until you're ready to code the private-tier poller.
+3. ✅ **Non-member provisioning email sent** to `accountmanager@pjm.com` — awaiting PJM's
+   manual review/provisioning. Don't block other work on this; start building the public
+   (EIA) tier while it's pending.
 4. **Check whether PKI-certificate auth is now required** for Data Miner API users (PJM's own
    roadmap targeted full rollout for Q3 2026, which has likely already passed) — read the
    PKI-Based Authentication Guide linked from PJM's API documentation when you get your API
    portal access, and note whether `gridstatus` (the Python library) handles it for you.
-5. **Create an Oracle Cloud account** for the Always Free tier VM. Oracle may ask for a card
-   for identity verification even on the free tier — it should not charge unless you
-   explicitly upgrade, but confirm this during signup before proceeding.
-6. **Create the GitHub repo** for this project — needed before the CI/CD stretch goal, but
-   fine to do whenever convenient.
+5. **Oracle Cloud account** — in progress. Once the VM exists: reserve a Public IPv4 address
+   (Always Free allows 2 at no cost) and attach it, rather than leaving the default ephemeral
+   IP in place.
+6. ✅ **GitHub repo created** — `github.com/aaaaaron29/pa-grid-monitor`, architecture doc
+   pushed.
+7. **Register a free subdomain** (e.g. via DuckDNS) pointed at the Oracle VM's eventual
+   reserved IP — needed for the TLS/public-access plan in Section 5. Can be done anytime
+   before Phase 5 deploy, no rush.
 
-Nothing above requires deep technical setup yet — steps 1, 2, 5, and 6 can be done in minutes;
-step 3 is the one to kick off first since it's the only one with an unknown wait.
+Only step 2/3 (PJM) and step 4 (PKI check) remain genuinely blocking for the private tier;
+everything else is either done or can happen in parallel with Phase 1 build work.
