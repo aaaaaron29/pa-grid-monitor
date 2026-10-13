@@ -516,6 +516,29 @@ in the README rather than papered over with a precision/recall number that doesn
      with known real events: heat waves, winter storms, PJM cold-weather alerts and
      emergency procedures? Presented as a sanity check, never as a metric.
 - Operating threshold is chosen on **validation**, frozen, then reported on test.
+- **Real synthetic-injection results (2026-10-13 run, public/EIA tier, 1% alert budget),
+  and a real finding about what this feature set can and can't see:**
+  recall was strongly type-dependent, not one blended number worth reporting on its own.
+  A large negative spike (residual -31,852) was caught at 100%; an equally large positive
+  spike (residual +44,851) was caught at 0%, step change at 8.3%, flatline and abnormal
+  ramp both at 0%. The asymmetry and the misses are explainable, not a bug (confirmed by
+  inspecting the actual injected residuals against the clean validation residual
+  distribution, which itself has a std of ~10,918 and real values from -44,721 to +27,081):
+  a single-hour point anomaly only stands out if it's extreme relative to that already-wide
+  natural tail, and flatline/abnormal-ramp are structurally invisible to this specific
+  feature set. A stuck sensor drives `rate_of_change` to ~0, which reads as an unusually
+  *calm* hour, not an anomalous one; a gradual ramp is built to never produce a shocking
+  single-hour jump. Both are genuinely multi-hour **pattern** anomalies, and nothing in the
+  current feature set (Section 6, "Feature design") aggregates across hours to see a
+  pattern; every feature is computed from a single row.
+  - **This is a real, honest limitation to state, not a bug to quietly patch.** The
+    straightforward next step, if pursued, is adding rolling-window features (e.g. a 3-6
+    hour rolling mean of `|rate_of_change|`, or rolling residual variance) so a sustained
+    flat or steadily-drifting window produces a visibly unusual row instead of several
+    individually-unremarkable ones. Deliberately left as a documented next iteration rather
+    than built reactively in the same pass that found the gap. The honest result, including
+    *why* it's weak where it's weak, is itself worth more here than silently re-tuning magnitudes
+    until a single aggregate number looks better.
 
 ### Retraining, drift, and cold start
 
