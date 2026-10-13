@@ -18,6 +18,18 @@ FEED = "rt_unverified_fivemin_lmps"
 FEED_URL = f"{BASE_URL}/{FEED}"
 
 
+@pytest.fixture(autouse=True)
+def _no_throttle(monkeypatch):
+    """The client paces real PJM requests at least 11s apart to stay under the 6/min rate
+    limit (ingestion.pjm_poller.client._throttle) — without this, every test in this file
+    would actually sleep, since _last_request_at is a module-level global shared across the
+    whole test run. Reset it and no-op the sleep so tests stay fast and independent."""
+    import ingestion.pjm_poller.client as client_module
+
+    monkeypatch.setattr(client_module, "_last_request_at", 0.0)
+    monkeypatch.setattr(client_module.time, "sleep", lambda _: None)
+
+
 @responses.activate
 def test_fetch_page_returns_items_and_total(load_fixture):
     responses.add(

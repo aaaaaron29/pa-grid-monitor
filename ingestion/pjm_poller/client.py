@@ -33,9 +33,26 @@ _MAX_RETRIES = 4
 _BACKOFF_BASE_SECONDS = 1.5
 _MAX_ROW_COUNT = 5000  # observed cap; same ceiling as EIA's response page size
 
+# Non-member rate limit is 6 req/min (Architecture.md Section 3, empirically confirmed —
+# this session tripped a 429 hitting it). A multi-year, 5-zone backfill makes a couple
+# hundred requests, so without proactive pacing it would spend most of its time hitting 429s
+# and leaning on the retry/backoff below, which only allows 4 attempts per call — nowhere
+# near enough headroom for a sustained run. Space every call at least 11s apart (≈5.5/min)
+# instead, so the limit is simply never hit in the first place.
+_MIN_SECONDS_BETWEEN_REQUESTS = 11.0
+_last_request_at: float = 0.0
+
 
 class PjmApiError(RuntimeError):
     pass
+
+
+def _throttle() -> None:
+    global _last_request_at
+    wait = _MIN_SECONDS_BETWEEN_REQUESTS - (time.monotonic() - _last_request_at)
+    if wait > 0:
+        time.sleep(wait)
+    _last_request_at = time.monotonic()
 
 
 def _post_with_retry(
@@ -43,6 +60,7 @@ def _post_with_retry(
 ) -> dict[str, Any]:
     last_exc: Exception | None = None
     for attempt in range(_MAX_RETRIES):
+        _throttle()
         try:
             resp = requests.post(url, json=body, headers=headers, timeout=timeout)
         except requests.RequestException as exc:
