@@ -8,6 +8,9 @@ dependencies = [
     "psycopg[binary]>=3.1",
     "requests>=2.31",
     "prometheus-client>=0.20",
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "scikit-learn>=1.4",
 ]
 
 [project.optional-dependencies]
@@ -36,4 +39,4 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["common*", "ingestion*"]
+include = ["common*", "ingestion*", "model*"]

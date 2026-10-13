@@ -460,6 +460,16 @@ silently wrong.
   calling them anomalies. Rule: forward-fill gaps of 1–2 hours, mark longer gaps as
   `quality = 'missing'` and exclude them from both training and scoring, and surface
   gap counts on the dashboard rather than hiding them.
+- **Implausible values are a real, separate failure mode from gaps, found running this
+  against live data (2026-10-13).** 3 rows out of 68,226 had demand values up to
+  2,147,480,000 MW, suspiciously close to 2^31-1, a classic 32-bit overflow/sentinel
+  value, strongly suggesting a data-quality incident on EIA's own side rather than anything
+  in this project's ingestion path. These are present, not missing, so the gap policy above
+  never touched them; a naive baseline trained on raw values had its MAPE corrupted from a
+  plausible ~11% to ~88% by three rows. Fix: `model/data.py` masks anything outside
+  [1,000, 250,000] MW to NaN before the missing-data policy runs (PJM's actual all-time peak
+  demand is roughly 165,000 MW, so 250,000 leaves generous headroom), so an implausible
+  reading flows through the exact same fill/exclude logic as any other gap.
 
 ### Evaluating an unsupervised detector (the honest version)
 
@@ -472,6 +482,15 @@ in the README rather than papered over with a precision/recall number that doesn
   alongside the model's.** If the LSTM doesn't beat them, the README says so and the
   baseline stays in production, that is a better engineering story than a model that wins
   on narrative only.
+  - **Real numbers, validation window (2026-10-13 run, public/EIA tier):**
+    seasonal-naive MAE=8,180 MAPE=8.15% RMSE=10,962; day-of-week × hour-of-day profile
+    MAE=11,807 MAPE=11.13% RMSE=15,713 (n=4,392 hours each). Seasonal-naive beats the
+    profile baseline, a genuinely interesting result worth keeping in the methodology
+    write-up rather than just a number: the profile averages over the *entire* ~6.5-year
+    training window, which smooths out the longer-term demand growth this project's whole
+    thesis is about, while seasonal-naive only looks back one week and tracks a moving
+    baseline more closely. The isolation forest's residuals should be scored against
+    seasonal-naive specifically, since it is the stronger of the two.
 - **The anomaly detector gets a two-part evaluation:**
   1. *Synthetic injection (quantitative).* Inject labeled perturbations into held-out data
      at known timestamps: step changes, spikes, flatlines (stuck-sensor), and abnormal
