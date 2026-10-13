@@ -3,8 +3,8 @@
 Near-real-time anomaly detection on the PJM electricity grid, with a private analysis layer
 correlating zone-level grid stress in Pennsylvania against data-center interconnection activity.
 
-**Status: pre-build.** Architecture, data sources, and modeling methodology are settled —
-see [ARCHITECTURE.md](ARCHITECTURE.md). Implementation hasn't started.
+**Status: pre-build.** Architecture, data sources, and modeling methodology are settled.
+See [ARCHITECTURE.md](ARCHITECTURE.md). Implementation hasn't started.
 
 ## What it does
 
@@ -24,7 +24,7 @@ minutes, so this is scheduled polling, not a continuous event stream.
 | **Visibility** | Open dashboard link | Authenticated access only |
 
 PJM's Data Miner terms prohibit non-members from republishing its data, so everything
-publicly visible here — the dashboard and this repository — is built exclusively on EIA's
+publicly visible here (the dashboard and this repository) is built exclusively on EIA's
 U.S. federal public-domain data. The PJM tier exists for zone-level analysis and is
 demonstrated live rather than published: **no raw PJM values, sample rows, screenshots, or
 PJM-trained model artifacts appear in this repo.** Code, schema, methodology, and aggregate
@@ -32,7 +32,7 @@ findings do.
 
 ## Methodology
 
-- **Time-based split**, never shuffled — scalers and thresholds fit on the training window
+- **Time-based split**, never shuffled: scalers and thresholds fit on the training window
   only, since leakage on time-series data usually enters through the scaler rather than the
   model.
 - **The detector scores forecast residuals, not raw demand.** Scoring raw levels just
@@ -42,7 +42,7 @@ findings do.
   than reporting a precision figure that can't be computed. Evaluation is: forecast error
   against published baselines, synthetic-anomaly injection at a fixed alert budget, and
   qualitative correspondence with known grid events.
-- Ingest is revision-aware — EIA restates published figures, and training on revised history
+- Ingest is revision-aware: EIA restates published figures, and training on revised history
   while serving on unrevised values is train/serve skew.
 
 Full reasoning, including what is deliberately *not* claimed, is in
