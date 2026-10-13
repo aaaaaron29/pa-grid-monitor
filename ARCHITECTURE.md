@@ -581,6 +581,26 @@ in the README rather than papered over with a precision/recall number that doesn
     specific data or feature choices. Strengthens the case that the real fix (a separate
     rule-based check, not another diluted input feature) is worth building once, serving
     both tiers, rather than two independent patches.
+  - **The rule-based fix, built and run for real (2026-10-13), closes most of the gap.**
+    `model/flatline_detector.py`: a plain threshold check (rolling_std at or below a
+    train-calibrated floor, for at least as many consecutive periods as the rolling window
+    itself) running ALONGSIDE the isolation forest rather than as one more diluted input,
+    which is exactly why it works where the forest alone doesn't -- a single-feature rule
+    has no dilution to lose signal to. EIA: flatline recall 0% -> 75% combined (forest OR
+    rule), everything else unchanged, rule's false-positive rate on real clean validation
+    data 0.18%. PJM, all 5 zones: flatline recall 0% -> ~90% combined (89.6-90.6% across
+    zones), 0.00% false-positive rate in every zone -- the fix is at least as effective on
+    PJM as on EIA, a second cross-tier confirmation in the fix's favor, not just the gap's.
+  - **One more honest finding from running all 5 PJM zones, not just PECO:** DUQ recalled
+    noticeably worse than the other four on the fixed-magnitude injections (negative spike
+    0% vs. 100% elsewhere, step change 4.2% vs. ~46%) -- not a bug, confirmed by checking
+    DUQ's own residual distribution: std of 234.0 against PECO's 103.8, real tail reaching
+    -2,119 to +4,164 against PECO's -628 to +2,661. The same fixed injection magnitudes,
+    deliberately reused across all five zones rather than re-tuned per zone, are simply
+    less extreme relative to DUQ's naturally noisier baseline. The flatline rule (which
+    calibrates its own floor per zone on that zone's train data) was unaffected by this and
+    performed consistently across all five -- the gap is specific to the fixed-magnitude
+    synthetic test, not the detector.
 
 ### Retraining, drift, and cold start
 
