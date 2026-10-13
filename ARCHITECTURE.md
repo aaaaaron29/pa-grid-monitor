@@ -134,12 +134,15 @@ The project claims what it actually does. See Section 3.
     `datetime_ending_utc` columns alongside the `_ept` ones; request UTC directly rather
     than converting from Eastern Prevailing Time at ingest. This removes the DST
     duplicate-hour conversion risk Section 7 otherwise has to handle by hand.
-  - **Open (ran into the rate limit before confirming):** the exact zone-identifier strings
-    for PECO/PPL/METED/PENELEC/DUQ in the `type=ZONE` / `pnode_name` filter. Filters are
-    passed as a JSON array of single-key objects, e.g.
-    `filters=[{"datetime_beginning_ept":"30minutesago"},{"type":"ZONE"}]`; confirm the
-    zone names with one more small, rate-limit-respecting query before writing
-    `pjm_poller/client.py`.
+  - **Zone pnode_ids confirmed (2026-10-13).** `pnode_name` and `type` are not
+    server-filterable on this feed (their metadata has `enableFiltering: false`); only
+    `pnode_id` is. Pulled an unfiltered interval and matched by name to get stable IDs:
+    PECO 51297, PPL 51299, METED 51296, PENELEC 51300, DUQ 37737283. The query itself is a
+    POST to the feed's base URL (not a GET with a `filters` querystring, which this feed
+    rejects) with a JSON body: `{"rowCount": N, "startRow": 1, "filters":
+    [{"datetime_beginning_ept": "5minutesago"}, {"pnode_id": 51297}], "sort":
+    "datetime_beginning_ept", "order": 1}`, one `pnode_id` filter per zone or omitted
+    entirely to pull all five by filtering client-side.
 - **The Large Load Registry (data-center interconnection transparency) was only approved by
   FERC on 2026-10-09**, days before this doc was written. The actual public data access
   mechanism (API vs. CSV export vs. committee PDF disclosures) may not be fully operational
@@ -215,9 +218,8 @@ The project claims what it actually does. See Section 3.
   retention, used for live dashboard freshness only). Section 3 has the full detail and the
   recommended use of each. Keep its Grafana dashboard authenticated-only, never a public link.
 - **PA zones to monitor:** PECO, PPL, METED, PENELEC, and DUQ (Duquesne Light): these cover
-  Pennsylvania within PJM's transmission zone map. Exact `pnode_name`/zone-identifier
-  strings for the `type=ZONE` filter are still unconfirmed. Ran into the rate limit before
-  verifying them live; confirm with one small query before writing `pjm_poller/client.py`.
+  Pennsylvania within PJM's transmission zone map. Confirmed `pnode_id` values (Section 3):
+  PECO 51297, PPL 51299, METED 51296, PENELEC 51300, DUQ 37737283.
 - **Data-center / large-load interconnection data**: source TBD at build time. Start with
   the new FERC-approved Large Load Registry (a public regulatory transparency record, not
   Data Miner Tool output, a different legal basis, so not obviously bound by Data Miner's

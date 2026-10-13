@@ -1,4 +1,4 @@
-# Local dev stack. Phase 1 scope: Postgres + the EIA poller only — Kafka is Phase 3
+# Local dev stack. Phase 1 scope: Postgres + the EIA and PJM pollers — Kafka is Phase 3
 # ("Pipeline wiring"), Prometheus/Grafana are Phase 4 ("Observability"). Compose
 # reproduces the k3s stack for day-to-day development (Architecture.md Section 2);
 # services are added here as each phase actually builds them, not pre-stubbed empty.
@@ -42,6 +42,21 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
     ports:
       - "9100:9100"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  pjm-poller:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    command: ["ingestion.pjm_poller"]
+    environment:
+      POSTGRES_DSN: postgresql://pjm_grid_watch:pjm_grid_watch@postgres:5432/pjm_grid_watch
+      PJM_API_KEY: ${PJM_API_KEY}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "9101:9100"  # distinct host port; each container's own :9100 is internal, no clash
     depends_on:
       migrate:
         condition: service_completed_successfully

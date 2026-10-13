@@ -1,0 +1,65 @@
+{
+  "items": [
+    {
+      "datetime_beginning_utc": "2026-10-13T00:00:00",
+      "datetime_beginning_ept": "2026-10-13T00:00:00",
+      "pnode_id": 51297,
+      "pnode_name": "PECO",
+      "type": "ZONE",
+      "total_lmp_rt": 18.0,
+      "congestion_price_rt": -30.68,
+      "marginal_loss_price_rt": -0.55,
+      "occ_check": true,
+      "ref_caseid_used_multi_interval": false
+    },
+    {
+      "datetime_beginning_utc": "2026-10-13T00:05:00",
+      "datetime_beginning_ept": "2026-10-13T00:05:00",
+      "pnode_id": 51297,
+      "pnode_name": "PECO",
+      "type": "ZONE",
+      "total_lmp_rt": 19.0,
+      "congestion_price_rt": -30.68,
+      "marginal_loss_price_rt": -0.55,
+      "occ_check": true,
+      "ref_caseid_used_multi_interval": false
+    },
+    {
+      "datetime_beginning_utc": "2026-10-13T00:10:00",
+      "datetime_beginning_ept": "2026-10-13T00:10:00",
+      "pnode_id": 51297,
+      "pnode_name": "PECO",
+      "type": "ZONE",
+      "total_lmp_rt": 20.0,
+      "congestion_price_rt": -30.68,
+      "marginal_loss_price_rt": -0.55,
+      "occ_check": true,
+      "ref_caseid_used_multi_interval": false
+    },
+    {
+      "datetime_beginning_utc": "2026-10-13T00:15:00",
+      "datetime_beginning_ept": "2026-10-13T00:15:00",
+      "pnode_id": 51297,
+      "pnode_name": "PECO",
+      "type": "ZONE",
+      "total_lmp_rt": 21.0,
+      "congestion_price_rt": -30.68,
+      "marginal_loss_price_rt": -0.55,
+      "occ_check": true,
+      "ref_caseid_used_multi_interval": false
+    },
+    {
+      "datetime_beginning_utc": "2026-10-13T00:20:00",
+      "datetime_beginning_ept": "2026-10-13T00:20:00",
+      "pnode_id": 51297,
+      "pnode_name": "PECO",
+      "type": "ZONE",
+      "total_lmp_rt": 22.0,
+      "congestion_price_rt": -30.68,
+      "marginal_loss_price_rt": -0.55,
+      "occ_check": true,
+      "ref_caseid_used_multi_interval": false
+    }
+  ],
+  "totalRows": 7
+}

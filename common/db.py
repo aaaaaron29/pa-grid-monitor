@@ -77,3 +77,59 @@ def fetch_eia_readings(
             (respondent, reading_type, start, end),
         )
         return cur.fetchall()
+
+
+# Composite key (zone, period_start). Unlike EIA, there are two independent writers here —
+# the live poller (rt_unverified_fivemin_lmps, every 5 min) and backfill/the verified refresh
+# (rt_fivemin_hrl_lmps, daily) — so "did the value change" isn't the only upsert condition:
+# a verified row must never be downgraded back to unverified by a late/retried unverified
+# poll. verified data always wins; unverified data only writes while the row isn't already
+# verified (Architecture.md Section 3/6).
+_UPSERT_PJM_LMP_READING = """
+INSERT INTO pjm_lmp_readings
+    (zone, period_start, lmp_price, quality, verified, retrieved_at)
+VALUES
+    (%(zone)s, %(period_start)s, %(lmp_price)s, %(quality)s, %(verified)s,
+     %(retrieved_at)s)
+ON CONFLICT (zone, period_start) DO UPDATE SET
+    lmp_price = EXCLUDED.lmp_price,
+    quality = EXCLUDED.quality,
+    verified = EXCLUDED.verified,
+    retrieved_at = EXCLUDED.retrieved_at
+WHERE (EXCLUDED.verified OR NOT pjm_lmp_readings.verified)
+  AND (
+    pjm_lmp_readings.lmp_price IS DISTINCT FROM EXCLUDED.lmp_price
+    OR pjm_lmp_readings.quality IS DISTINCT FROM EXCLUDED.quality
+    OR pjm_lmp_readings.verified IS DISTINCT FROM EXCLUDED.verified
+  )
+"""
+
+
+def upsert_pjm_lmp_readings(conn: psycopg.Connection, rows: Sequence[dict[str, Any]]) -> int:
+    """Upsert a batch of normalized PJM LMP rows (see common.normalize_pjm). Same caveat as
+    upsert_eia_readings: returns rows passed, not rows actually changed."""
+    if not rows:
+        return 0
+    with conn.cursor() as cur:
+        cur.executemany(_UPSERT_PJM_LMP_READING, rows)
+    return len(rows)
+
+
+def fetch_pjm_lmp_readings(
+    conn: psycopg.Connection,
+    zone: str,
+    start,
+    end,
+) -> Iterable[dict[str, Any]]:
+    """Mainly for tests/debugging — the model and Grafana read Postgres directly."""
+    with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+        cur.execute(
+            """
+            SELECT zone, period_start, lmp_price, quality, verified, retrieved_at
+            FROM pjm_lmp_readings
+            WHERE zone = %s AND period_start >= %s AND period_start < %s
+            ORDER BY period_start
+            """,
+            (zone, start, end),
+        )
+        return cur.fetchall()

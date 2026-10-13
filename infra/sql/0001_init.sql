@@ -38,6 +38,12 @@ CREATE TABLE IF NOT EXISTS pjm_lmp_readings (
     period_start    timestamptz NOT NULL,           -- UTC, 5-minute interval start
     lmp_price       double precision,               -- $/MWh; NULL on a reporting gap
     quality         text NOT NULL DEFAULT 'ok' CHECK (quality IN ('ok', 'missing')),
+    verified        boolean NOT NULL DEFAULT false, -- true once written from rt_fivemin_hrl_lmps
+                                                     -- (settlement-quality); false while only
+                                                     -- rt_unverified_fivemin_lmps has posted a
+                                                     -- value for this interval (Architecture.md
+                                                     -- Section 3/6: verified data always wins
+                                                     -- the upsert, never the reverse)
     retrieved_at    timestamptz NOT NULL,
     PRIMARY KEY (zone, period_start)
 );

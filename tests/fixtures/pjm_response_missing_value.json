@@ -1,0 +1,17 @@
+{
+  "items": [
+    {
+      "datetime_beginning_utc": "2026-10-13T19:10:00",
+      "datetime_beginning_ept": "2026-10-13T15:10:00",
+      "pnode_id": 51297,
+      "pnode_name": "PECO",
+      "type": "ZONE",
+      "total_lmp_rt": null,
+      "congestion_price_rt": -30.68,
+      "marginal_loss_price_rt": -0.55,
+      "occ_check": true,
+      "ref_caseid_used_multi_interval": false
+    }
+  ],
+  "totalRows": 1
+}

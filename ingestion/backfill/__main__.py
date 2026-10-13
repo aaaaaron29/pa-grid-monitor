@@ -11,6 +11,7 @@ from common.config import get_settings
 from common.logging import configure_logging
 from common.metrics import start_metrics_server
 from ingestion.backfill.eia_backfill import run_eia_backfill
+from ingestion.backfill.pjm_backfill import run_pjm_backfill
 
 log = logging.getLogger("backfill")
 
@@ -41,11 +42,14 @@ def main() -> None:
             settings, start=args.start, end=args.end, respondent=args.respondent
         )
         log.info("backfill complete", extra={"source": "eia", "rows_written": written})
+    elif args.source == "pjm":
+        written = run_pjm_backfill(settings, start=args.start, end=args.end)
+        log.info("backfill complete", extra={"source": "pjm", "rows_written": written})
     else:
         raise NotImplementedError(
-            f"'{args.source}' backfill isn't built yet — Phase 1 ships the EIA (public) "
-            "tier first; the PJM and queue loaders land once their data access is "
-            "confirmed (Architecture.md Section 9/10)."
+            f"'{args.source}' backfill isn't built yet — the queue scraper's source is "
+            "still TBD (Architecture.md Section 4/9), unlike EIA and PJM which are both "
+            "confirmed and built."
         )
 
 
