@@ -516,29 +516,45 @@ in the README rather than papered over with a precision/recall number that doesn
      with known real events: heat waves, winter storms, PJM cold-weather alerts and
      emergency procedures? Presented as a sanity check, never as a metric.
 - Operating threshold is chosen on **validation**, frozen, then reported on test.
-- **Real synthetic-injection results (2026-10-13 run, public/EIA tier, 1% alert budget),
-  and a real finding about what this feature set can and can't see:**
-  recall was strongly type-dependent, not one blended number worth reporting on its own.
-  A large negative spike (residual -31,852) was caught at 100%; an equally large positive
-  spike (residual +44,851) was caught at 0%, step change at 8.3%, flatline and abnormal
-  ramp both at 0%. The asymmetry and the misses are explainable, not a bug (confirmed by
-  inspecting the actual injected residuals against the clean validation residual
-  distribution, which itself has a std of ~10,918 and real values from -44,721 to +27,081):
-  a single-hour point anomaly only stands out if it's extreme relative to that already-wide
-  natural tail, and flatline/abnormal-ramp are structurally invisible to this specific
-  feature set. A stuck sensor drives `rate_of_change` to ~0, which reads as an unusually
-  *calm* hour, not an anomalous one; a gradual ramp is built to never produce a shocking
-  single-hour jump. Both are genuinely multi-hour **pattern** anomalies, and nothing in the
-  current feature set (Section 6, "Feature design") aggregates across hours to see a
-  pattern; every feature is computed from a single row.
-  - **This is a real, honest limitation to state, not a bug to quietly patch.** The
-    straightforward next step, if pursued, is adding rolling-window features (e.g. a 3-6
-    hour rolling mean of `|rate_of_change|`, or rolling residual variance) so a sustained
-    flat or steadily-drifting window produces a visibly unusual row instead of several
-    individually-unremarkable ones. Deliberately left as a documented next iteration rather
-    than built reactively in the same pass that found the gap. The honest result, including
-    *why* it's weak where it's weak, is itself worth more here than silently re-tuning magnitudes
-    until a single aggregate number looks better.
+- **Real synthetic-injection results, two rounds, both run live against the real backfilled
+  data (2026-10-13), 1% alert budget throughout.** First round, with the original 5-feature
+  set (residual, hour, dayofweek, is_holiday, rate_of_change): a large negative spike
+  (residual -31,852) caught at 100%, an equally large positive spike (+44,851) at 0%, step
+  change at 8.3%, flatline and abnormal ramp both at 0%. The asymmetry and the misses
+  were explainable, not a bug: the clean validation residual distribution already has a std
+  of ~10,918 and real values from -44,721 to +27,081, so a single-hour point anomaly only
+  stands out if it's extreme relative to that already-wide natural tail; flatline and
+  abnormal-ramp are genuinely multi-hour **pattern** anomalies, and nothing in that feature
+  set aggregated across hours to see a pattern.
+  - **Fix, also real and tested live:** two rolling-window columns added to
+    `model/features.py`: `rolling_std` (trailing 4h) and `rolling_rate_of_change_mean`
+    (trailing 4h), specifically so a stuck sensor or a sustained drift produces a visibly
+    unusual row instead of several individually-unremarkable ones.
+  - **Second round, 7-feature set, same magnitudes:** spike recall went to 100% both
+    directions, step change improved from 8.3% to 41.7%. Flatline and abnormal ramp were
+    *still* 0% at the original magnitudes, which prompted one more check before accepting
+    that result: is this still a magnitude-calibration problem, or has it become genuinely
+    structural? Tested both anomaly types at deliberately larger magnitude/duration to find
+    out:
+    - **Abnormal ramp: magnitude calibration, not a detector problem.** At 100,000 total
+      magnitude over 10h (vs. the original 30,000), recall jumped to 80%. `rolling_rate_of_
+      change_mean` genuinely works; the original test magnitude simply wasn't extreme
+      relative to real demand's natural ramping (training data's own max for that feature
+      is 34,614, bigger than the original injection's peak).
+    - **Flatline: genuinely structural, confirmed by ruling out magnitude.** Tripling the
+      duration to 24 hours (a full day stuck) still scored 0% recall, with the maximum
+      score among injected positions still negative (looking *more* normal than average).
+      `rolling_std` does correctly collapse to exactly 0, below even the training window's
+      observed minimum, but that one informative signal gets diluted across 6 other
+      mostly-irrelevant features in the isolation forest's random per-split feature choice,
+      and more duration doesn't fix dilution the way more magnitude fixes a weak signal.
+  - **Left as a named, understood limitation rather than chased further.** A targeted fix
+    exists (e.g. a simple rule-based check: rolling_std under some floor for N consecutive
+    hours, running alongside the isolation forest rather than as one of its diluted input
+    features) but is a different kind of detector, a real design decision, not a one-line
+    change, and is deliberately left for a future iteration. The pattern across this whole
+    evaluation exercise: investigate until the *why* is understood and defensible, then stop
+    and document precisely, rather than keep tuning until one aggregate number looks better.
 
 ### Retraining, drift, and cold start
 

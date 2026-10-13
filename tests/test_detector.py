@@ -17,6 +17,8 @@ def _synthetic_features(n: int, seed: int = 0) -> pd.DataFrame:
             "dayofweek": idx.dayofweek,
             "is_holiday": 0,
             "rate_of_change": rng.normal(0, 50, n),
+            "rolling_std": rng.normal(50, 10, n).clip(min=0),
+            "rolling_rate_of_change_mean": rng.normal(0, 20, n),
         },
         index=idx,
     )
@@ -97,6 +99,8 @@ def test_higher_score_means_more_anomalous_not_sklearns_inverted_convention():
             "dayofweek": 0,
             "is_holiday": 0,
             "rate_of_change": 0.0,
+            "rolling_std": 5.0,
+            "rolling_rate_of_change_mean": 0.0,
         },
         index=idx,
     )

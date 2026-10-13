@@ -12,7 +12,15 @@ import numpy as np
 import pandas as pd
 from sklearn.ensemble import IsolationForest
 
-FEATURE_COLUMNS = ["residual", "hour", "dayofweek", "is_holiday", "rate_of_change"]
+FEATURE_COLUMNS = [
+    "residual",
+    "hour",
+    "dayofweek",
+    "is_holiday",
+    "rate_of_change",
+    "rolling_std",
+    "rolling_rate_of_change_mean",
+]
 
 
 class Detector:
