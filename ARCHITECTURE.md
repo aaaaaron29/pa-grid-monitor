@@ -68,9 +68,11 @@ The project claims what it actually does — see Section 3.
   `accountmanager@pjm.com` with the exact statement *"I confirm that the PJM Data will be
   used for internal business purposes only,"* including your Account Manager user id and the
   email used to subscribe. PJM then manually provisions non-member API access — expect a
-  human-review turnaround delay. **Status: confirmation email has been sent** — waiting on
-  PJM's manual provisioning; don't block Phase 1 on this, start with the public (EIA) tier
-  while it's pending.
+  human-review turnaround delay. **Status: confirmed live (2026-10-13)** — a real
+  `Ocp-Apim-Subscription-Key` now authenticates against `api.pjm.com` (verified directly:
+  HTTP 200 against `rt_hrl_lmps/metadata` and others, real data returned). The private tier
+  is unblocked; see the new "PJM Data Miner: confirmed feed behavior" entry below for what
+  that access actually looks like.
 - **Grafana's public-sharing feature is confirmed available in OSS, no extra licensing
   needed.** It's officially called "Externally Shared Dashboards" (formerly "Public
   Dashboards") as of recent Grafana versions, enabled by default, and works per-dashboard —
@@ -89,21 +91,55 @@ The project claims what it actually does — see Section 3.
   externally shared — it is *not* a reason to gate the public tier, which is EIA-only
   (U.S. federal public domain) and is meant to be an open, linkable URL.
 - **Non-member rate limit is 6 requests/minute** (members get 600/min), per the same Terms of
-  Use (Section 2). Irrelevant at a 5-minute polling cadence — just don't poll aggressively
-  or in a tight retry loop during debugging. It *does* matter for the historical backfill,
-  where the per-request page size determines whether that job takes minutes or hours
-  (Section 6).
+  Use (Section 2) — **and empirically confirmed**: testing the live key tripped a 429 after
+  ~6 metadata/data calls inside a couple of minutes. It's real and it bites fast; back off
+  aggressively, especially while exploring feeds by hand. Irrelevant at a 5-minute polling
+  cadence for the poller itself — it matters for the historical backfill, where the
+  per-request page size determines whether that job takes minutes or hours (Section 6).
 - **Use the `gridstatus` Python library (`pip install gridstatus`) instead of hand-rolling
   PJM API calls.** It's an actively maintained open-source wrapper that already handles PJM
   LMP, load, and — notably — interconnection-queue data, which may remove most of the custom
   queue-scraper work planned in Phase 1. It expects your key as the `PJM_API_KEY` env var.
   Check its current PJM module first in Phase 1 before building anything custom.
-- **PJM API auth may require more than a plain API key now.** PJM is rolling out a new
-  PKI-certificate-based authentication requirement for Data Miner API users (full rollout
-  targeted Q3 2026 per PJM's own tech-change documentation) — meaning this may already be
-  live by the time you build. Read PJM's "PKI-Based Authentication Guide" during
-  registration, don't assume the old API-key-only flow still works. If `gridstatus` handles
-  this transparently, that's another reason to prefer it over custom integration.
+- **PJM API auth: confirmed a plain subscription key is still sufficient (2026-10-13).** A
+  bare `Ocp-Apim-Subscription-Key` header authenticated successfully against multiple live
+  Data Miner 2 endpoints — no PKI client certificate was required despite PJM's Q3 2026
+  rollout target for that requirement. Either the rollout hasn't reached non-member API-key
+  auth, or this key predates/is exempt from it. Don't treat this as a permanent guarantee —
+  if auth ever starts failing, the PKI guide is the first thing to check — but there's no
+  reason to pre-build certificate handling now.
+- **PJM Data Miner: confirmed feed behavior (2026-10-13), and it changes the "5-minute"
+  story.** Verified directly against `api.pjm.com`, not assumed:
+  - **No single feed is both settlement-quality and continuously updating.** `rt_hrl_lmps`
+    (hourly) and `rt_fivemin_hrl_lmps` (5-minute granularity, verified/settlement-quality)
+    both have `postingFrequency: "Daily On Business Days"` — new data lands once a day, not
+    every 5 minutes, regardless of the row interval. `rt_unverified_fivemin_lmps` is the one
+    feed that actually posts `"Every 5 minutes"`, but PJM's own description is explicit that
+    it is "not settlement quality... subject to change as part of the Verification process",
+    and it's retained only **30 days**.
+  - **Recommendation — use both, for different jobs.** Backfill and model training read
+    `rt_fivemin_hrl_lmps` (verified, 5-minute granularity, `firstAvailable: 2018-04-01`,
+    retained indefinitely — comfortably covers the 2+ year window Section 6 wants, archived
+    with reduced query flexibility after 2 years). The live poller additionally polls
+    `rt_unverified_fivemin_lmps` for dashboard freshness only, clearly labeled
+    "provisional" in the UI, with the next day's verified values reconciling it through the
+    same revision-aware upsert `eia_readings` already uses (Section 6) — unverified LMP
+    getting corrected the next day is a real, expected revision, not an edge case.
+  - **The honest cadence claim, restated:** settlement-quality PJM LMP is near-real-time at
+    best (next-business-day for verified data), with a provisional same-day view available
+    but explicitly unverified. This is a more precise (and more defensible) version of the
+    "polling-to-Kafka at a 5-minute cadence" framing below — the 5-minute number describes
+    row granularity, not data freshness, for anything but the unverified feed.
+  - **UTC is native, not derived.** Both feeds expose `datetime_beginning_utc` /
+    `datetime_ending_utc` columns alongside the `_ept` ones — request UTC directly rather
+    than converting from Eastern Prevailing Time at ingest. This removes the DST
+    duplicate-hour conversion risk Section 7 otherwise has to handle by hand.
+  - **Open (ran into the rate limit before confirming):** the exact zone-identifier strings
+    for PECO/PPL/METED/PENELEC/DUQ in the `type=ZONE` / `pnode_name` filter. Filters are
+    passed as a JSON array of single-key objects, e.g.
+    `filters=[{"datetime_beginning_ept":"30minutesago"},{"type":"ZONE"}]` — confirm the
+    zone names with one more small, rate-limit-respecting query before writing
+    `pjm_poller/client.py`.
 - **The Large Load Registry (data-center interconnection transparency) was only approved by
   FERC on 2026-10-09** — days before this doc was written. The actual public data access
   mechanism (API vs. CSV export vs. committee PDF disclosures) may not be fully operational
@@ -129,9 +165,11 @@ The project claims what it actually does — see Section 3.
   Fly.io and Railway have both substantially curtailed their free offerings since the days
   when they were the standard answer, so treat a ~$5/month small VPS as the realistic
   fallback rather than assuming another free tier is waiting.
-- **PJM "real-time" LMP data refreshes on a 5-minute cadence**, not sub-second — "streaming"
-  here means polling-to-Kafka at that cadence, not a true continuous event stream. Be
-  accurate about this in the project's documentation.
+- **PJM "real-time" LMP: 5 minutes is the row granularity, not the data freshness** —
+  confirmed empirically in the Data Miner entry above, more nuanced than first assumed here.
+  Settlement-quality LMP posts once a day; only the explicitly-unverified feed actually
+  updates every 5 minutes. "Streaming" means polling-to-Kafka, not a continuous event
+  stream, either way — but say which feed and which guarantee in anything public-facing.
 - **Oracle gives new instances an ephemeral public IP by default, which changes if the VNIC
   is detached or the instance is recreated** — this would silently break a public link.
   Always Free allows up to 2 **Reserved** Public IPv4 addresses at no cost, as long as one
@@ -169,14 +207,17 @@ The project claims what it actually does — see Section 3.
 
 ### Private tier (research/analysis only — never exposed on the public dashboard)
 
-- **PJM Data Miner 2** (`apiportal.pjm.com`) — real-time + historical locational marginal
-  pricing (LMP) and load data, broken out by zone. Register for a PJM tools account via
-  `accountmanager.pjm.com`, then follow the non-member email provisioning process (Section 3,
-  Section 10). Check the PKI auth requirement before assuming a bare API key is sufficient.
-  Use this for the PA-zone-specific analysis and your own model development; keep its Grafana
-  dashboard authenticated-only, never a public link.
+- **PJM Data Miner 2** (`api.pjm.com`, access confirmed live — Section 3/10) — locational
+  marginal pricing (LMP) by zone, across three feeds with different tradeoffs: verified
+  `rt_fivemin_hrl_lmps` (5-min granularity, posts daily, deep history — backfill/training),
+  verified `rt_hrl_lmps` (hourly, posts daily, history to 1998), and
+  `rt_unverified_fivemin_lmps` (posts every 5 minutes, not settlement-quality, 30-day
+  retention — live dashboard freshness only). Section 3 has the full detail and the
+  recommended use of each. Keep its Grafana dashboard authenticated-only, never a public link.
 - **PA zones to monitor:** PECO, PPL, METED, PENELEC, and DUQ (Duquesne Light) — these cover
-  Pennsylvania within PJM's transmission zone map.
+  Pennsylvania within PJM's transmission zone map. Exact `pnode_name`/zone-identifier
+  strings for the `type=ZONE` filter are still unconfirmed — ran into the rate limit before
+  verifying them live; confirm with one small query before writing `pjm_poller/client.py`.
 - **Data-center / large-load interconnection data** — source TBD at build time. Start with
   the new FERC-approved Large Load Registry (a public regulatory transparency record, not
   Data Miner Tool output — a different legal basis, so not obviously bound by Data Miner's
@@ -218,12 +259,12 @@ PUBLIC PIPELINE (safe to expose — powers the public dashboard)
 
 PRIVATE PIPELINE (research/analysis only — never a public link)
 ─────────────────────────────────────────────────────────────
-  ┌───────────────────┐      ┌──────────────────────┐
-  │ PJM Data Miner API │      │ Queue / Large Load    │
-  │ (PA zone LMP,      │      │ Registry (batch,      │
-  │ 5-min refresh)     │      │ cron/K8s CronJob)      │
-  └─────────┬──────────┘      └───────────┬───────────┘
-            ▼                              ▼
+  ┌────────────────────┐      ┌────────────────────┐
+  │ PJM Data Miner API │      │ Queue / Large Load │
+  │ (verified: daily;  │      │ Registry (batch,   │
+  │ unverified: 5-min) │      │ cron/K8s CronJob)  │
+  └──────────┬─────────┘      └──────────┬─────────┘
+             ▼                           ▼
   ┌───────────────────┐      ┌───────────────────────┐
   │ Kafka: pjm.lmp.raw │      │ Postgres:             │
   └─────────┬──────────┘      │ interconnection_queue │
@@ -603,13 +644,12 @@ Docker, GitHub Actions) is self-installed later and needs no advance signup.
 1. ✅ **EIA API key** — obtained and saved securely (not in the repo).
 2. ✅ **PJM Tools account created** — via `accountmanager.pjm.com` / `apiportal.pjm.com`.
    This alone does not grant API access; the provisioning email in step 3 is what does.
-3. ✅ **Non-member provisioning email sent** to `accountmanager@pjm.com` — awaiting PJM's
-   manual review/provisioning. Don't block other work on this; start building the public
-   (EIA) tier while it's pending.
-4. **Check whether PKI-certificate auth is now required** for Data Miner API users (PJM's own
-   roadmap targeted full rollout for Q3 2026, which has likely already passed) — read the
-   PKI-Based Authentication Guide linked from PJM's API documentation when you get your API
-   portal access, and note whether `gridstatus` (the Python library) handles it for you.
+3. ✅ **Non-member provisioning email sent** to `accountmanager@pjm.com`, and **access
+   confirmed live** (2026-10-13) — a plain `Ocp-Apim-Subscription-Key` successfully
+   authenticates against real Data Miner 2 endpoints. The private tier is unblocked.
+4. ✅ **PKI-certificate auth checked** — not required. The plain subscription key above
+   authenticated without one, confirmed live against `api.pjm.com` (Section 3 has the
+   detail). Revisit only if auth starts failing later.
 5. **Oracle Cloud account** — in progress. Once the VM exists: reserve a Public IPv4 address
    (Always Free allows 2 at no cost) and attach it, rather than leaving the default ephemeral
    IP in place.
@@ -619,6 +659,7 @@ Docker, GitHub Actions) is self-installed later and needs no advance signup.
    reserved IP — needed for the TLS/public-access plan in Section 5. Can be done anytime
    before Phase 5 deploy, no rush.
 
-The only outstanding external dependency is **PJM's reply** to the step 3 provisioning
-email, and the step 4 PKI check that follows it — both private-tier only. Everything else is
-done or can happen in parallel, so Phase 1 (public tier, end to end) is fully unblocked.
+The only remaining external dependency is step 5 (Oracle Cloud account, needed for Phase 5
+deploy only). PJM access is confirmed and live, so the private tier is unblocked too —
+remaining PJM work is the zone-identifier confirmation and feed-strategy implementation
+noted in Section 3/4, not an access/provisioning wait.

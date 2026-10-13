@@ -9,16 +9,25 @@ This module does NOT impute missing values — a null EIA value becomes quality=
 is stored as-is. Forward-filling short gaps and excluding long ones is a modeling-time
 decision (Architecture.md Section 6, "Feature design") made in /model, not an ingest-time one;
 the ingest layer's job is to record what actually happened, including the gaps.
+
+Confirmed live (2026-10-13): EIA mostly represents "not yet published" by OMITTING the row
+entirely, not by sending value=null — in a 48h pull, type D (demand) had all 48 rows, but NG
+and TI (generation mix, interchange) only had 34, because they lag demand's publication. The
+quality='missing' path here handles an explicit null when EIA does send one; detecting an
+omitted hour requires comparing the expected period sequence against what's actually in
+eia_readings (a gap in the data, not a flagged row) — that comparison belongs in /model
+alongside the rest of the missing-data policy, not here.
 """
 from __future__ import annotations
 
 from datetime import UTC, datetime
 from typing import Any, TypedDict
 
-# EIA API v2's documented hourly period format is "YYYY-MM-DDTHH" (no offset). EIA-930 hourly
-# series are published in UTC. TODO(verify): confirm both the literal format and the UTC
-# assumption against a live response's "response.dateFormat" field — run
-# scripts/smoke_test_eia.py once EIA_API_KEY is loaded, before trusting this past Phase 1.
+# Confirmed 2026-10-13 via scripts/smoke_test_eia.py against the live API: a request made
+# at 18:36 UTC returned "2026-10-13T12" as its most recent non-null row (dateFormat in the
+# response: YYYY-MM-DD"T"HH24, i.e. no offset) — a 6.6h lag, consistent with EIA-930's
+# documented near-real-time publication delay. Eastern Time would imply an atypically fast
+# ~2.6h lag instead, so UTC is both the documented convention and the better fit here.
 _PERIOD_FORMAT = "%Y-%m-%dT%H"
 
 
