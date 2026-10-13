@@ -1,0 +1,32 @@
+{
+  "response": {
+    "total": "7",
+    "dateFormat": "YYYY-MM-DD\"T\"HH24",
+    "frequency": "hourly",
+    "data": [
+      {
+        "period": "2024-01-01T05",
+        "respondent": "PJM",
+        "respondent-name": "PJM Interconnection, LLC",
+        "type": "D",
+        "type-name": "Demand",
+        "value": "80500",
+        "value-units": "megawatthours"
+      },
+      {
+        "period": "2024-01-01T06",
+        "respondent": "PJM",
+        "respondent-name": "PJM Interconnection, LLC",
+        "type": "D",
+        "type-name": "Demand",
+        "value": "80600",
+        "value-units": "megawatthours"
+      }
+    ]
+  },
+  "request": {
+    "command": "/v2/electricity/rto/region-data/data/",
+    "params": {}
+  },
+  "apiVersion": "2.1.9"
+}

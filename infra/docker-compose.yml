@@ -1,0 +1,50 @@
+# Local dev stack. Phase 1 scope: Postgres + the EIA poller only — Kafka is Phase 3
+# ("Pipeline wiring"), Prometheus/Grafana are Phase 4 ("Observability"). Compose
+# reproduces the k3s stack for day-to-day development (Architecture.md Section 2);
+# services are added here as each phase actually builds them, not pre-stubbed empty.
+name: pjm-grid-watch
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: pjm_grid_watch
+      POSTGRES_PASSWORD: pjm_grid_watch
+      POSTGRES_DB: pjm_grid_watch
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pjm_grid_watch"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    command: ["scripts.apply_migrations"]
+    environment:
+      POSTGRES_DSN: postgresql://pjm_grid_watch:pjm_grid_watch@postgres:5432/pjm_grid_watch
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  eia-poller:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    environment:
+      POSTGRES_DSN: postgresql://pjm_grid_watch:pjm_grid_watch@postgres:5432/pjm_grid_watch
+      EIA_API_KEY: ${EIA_API_KEY}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "9100:9100"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:

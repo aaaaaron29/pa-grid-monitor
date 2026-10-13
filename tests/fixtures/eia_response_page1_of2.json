@@ -1,0 +1,59 @@
+{
+  "response": {
+    "total": "7",
+    "dateFormat": "YYYY-MM-DD\"T\"HH24",
+    "frequency": "hourly",
+    "data": [
+      {
+        "period": "2024-01-01T00",
+        "respondent": "PJM",
+        "respondent-name": "PJM Interconnection, LLC",
+        "type": "D",
+        "type-name": "Demand",
+        "value": "80000",
+        "value-units": "megawatthours"
+      },
+      {
+        "period": "2024-01-01T01",
+        "respondent": "PJM",
+        "respondent-name": "PJM Interconnection, LLC",
+        "type": "D",
+        "type-name": "Demand",
+        "value": "80100",
+        "value-units": "megawatthours"
+      },
+      {
+        "period": "2024-01-01T02",
+        "respondent": "PJM",
+        "respondent-name": "PJM Interconnection, LLC",
+        "type": "D",
+        "type-name": "Demand",
+        "value": "80200",
+        "value-units": "megawatthours"
+      },
+      {
+        "period": "2024-01-01T03",
+        "respondent": "PJM",
+        "respondent-name": "PJM Interconnection, LLC",
+        "type": "D",
+        "type-name": "Demand",
+        "value": "80300",
+        "value-units": "megawatthours"
+      },
+      {
+        "period": "2024-01-01T04",
+        "respondent": "PJM",
+        "respondent-name": "PJM Interconnection, LLC",
+        "type": "D",
+        "type-name": "Demand",
+        "value": "80400",
+        "value-units": "megawatthours"
+      }
+    ]
+  },
+  "request": {
+    "command": "/v2/electricity/rto/region-data/data/",
+    "params": {}
+  },
+  "apiVersion": "2.1.9"
+}
