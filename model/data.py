@@ -101,23 +101,29 @@ def load_eia_series(
 
 
 def apply_missing_data_policy(
-    series: pd.Series, max_forward_fill_hours: int = 2
+    series: pd.Series, max_forward_fill_periods: int = 2
 ) -> tuple[pd.Series, pd.Series]:
-    """Pure function, no I/O — forward-fills NaN runs of length <= max_forward_fill_hours,
+    """Pure function, no I/O — forward-fills NaN runs of length <= max_forward_fill_periods,
     leaves longer runs as NaN (excluded). Returns (processed_values, quality_labels) where
     quality_labels is one of 'ok' (never missing), 'filled' (forward-filled), or 'excluded'
-    (gap too long, left NaN) per hour.
+    (gap too long, left NaN) per row.
+
+    Grain-agnostic despite living in this (EIA-authored) module — it only counts consecutive
+    NaN runs, nothing here assumes hourly data. The default of 2 matches Architecture.md
+    Section 6's "forward-fill gaps of 1-2 hours" for EIA's hourly series specifically; a
+    caller on a different cadence (e.g. PJM's 5-minute data) should pass an explicit value
+    with its own stated reasoning, not silently inherit this default's intent.
 
     This is the one place the project's missing-data policy is actually enforced — train and
-    score must both go through it, never consume load_eia_series's raw output directly.
+    score must both go through it, never consume raw series output directly.
     """
     is_na = series.isna()
     # Group consecutive NaNs into runs: each time is_na flips, start a new group id.
     run_id = is_na.ne(is_na.shift()).cumsum()
     run_length = is_na.groupby(run_id).transform("size")
 
-    short_gap = is_na & (run_length <= max_forward_fill_hours)
-    long_gap = is_na & (run_length > max_forward_fill_hours)
+    short_gap = is_na & (run_length <= max_forward_fill_periods)
+    long_gap = is_na & (run_length > max_forward_fill_periods)
 
     filled = series.ffill()
     processed = series.copy()

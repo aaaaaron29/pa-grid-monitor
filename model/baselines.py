@@ -16,11 +16,13 @@ from __future__ import annotations
 import pandas as pd
 
 
-def seasonal_naive_predict(series: pd.Series, lag_hours: int = 24 * 7) -> pd.Series:
-    """Predicts each hour as the value exactly `lag_hours` earlier (default: same hour,
-    previous week). The first `lag_hours` of the series have no prediction (NaN) — there's
-    nothing earlier to reference."""
-    return series.shift(lag_hours)
+def seasonal_naive_predict(series: pd.Series, lag_periods: int = 24 * 7) -> pd.Series:
+    """Predicts each row as the value exactly `lag_periods` earlier (default: 168, "same
+    hour, previous week" for hourly data). Grain-agnostic -- it just shifts by row count, so
+    a 5-minute series needs its own explicit lag_periods (e.g. 2016 for "same time, previous
+    week" at 5-minute resolution), not this hourly-tuned default. The first `lag_periods`
+    rows have no prediction (NaN) -- there's nothing earlier to reference."""
+    return series.shift(lag_periods)
 
 
 class DowHourProfile:

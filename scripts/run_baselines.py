@@ -29,14 +29,18 @@ def main() -> None:
     configure_logging(settings.log_level)
 
     log.info("loading EIA demand series from Postgres")
-    raw = load_eia_series(settings.postgres_dsn, start=splits.TRAIN_START, end=splits.FREEZE_DATE)
+    raw = load_eia_series(
+        settings.postgres_dsn, start=splits.EIA_TRAIN_START, end=splits.EIA_FREEZE_DATE
+    )
     values, quality = apply_missing_data_policy(raw)
 
     gap_counts = quality.value_counts()
     log.info("gap summary", extra={k: int(v) for k, v in gap_counts.items()})
 
-    train_mask = splits.split_mask(values.index, splits.TRAIN_START, splits.TRAIN_END)
-    val_mask = splits.split_mask(values.index, splits.VALIDATION_START, splits.VALIDATION_END)
+    train_mask = splits.split_mask(values.index, splits.EIA_TRAIN_START, splits.EIA_TRAIN_END)
+    val_mask = splits.split_mask(
+        values.index, splits.EIA_VALIDATION_START, splits.EIA_VALIDATION_END
+    )
 
     # Excluded-gap hours never participate in fitting or scoring, in either window.
     train_series = values[train_mask & (quality != "excluded")]

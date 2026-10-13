@@ -26,8 +26,8 @@ _HOLIDAY_CALENDAR = USFederalHolidayCalendar()
 def build_features(
     actual: pd.Series,
     forecast: pd.Series,
-    rate_of_change_lag_hours: int = 1,
-    rolling_window_hours: int = 4,
+    rate_of_change_lag_periods: int = 1,
+    rolling_window_periods: int = 4,
 ) -> pd.DataFrame:
     """Returns a DataFrame indexed the same as `actual`, columns:
     residual, hour, dayofweek, is_holiday, rate_of_change, rolling_std,
@@ -36,16 +36,21 @@ def build_features(
     `forecast` must already be aligned to `actual`'s index (e.g. baselines.seasonal_naive_
     predict's output) -- this function does not shift or lag it.
 
-    `rolling_std` is the trailing rolling_window_hours standard deviation of `actual` -- a
+    Grain-agnostic: both lag/window parameters are counted in rows ("periods"), not hours --
+    the defaults (1, 4) suit hourly data (Architecture.md Section 6's "short-window rate of
+    change"); a different cadence (e.g. PJM's 5-minute data) needs its own explicit values
+    with their own stated reasoning, not these hourly-tuned defaults.
+
+    `rolling_std` is the trailing rolling_window_periods standard deviation of `actual` -- a
     stuck sensor (flatline) drives this toward zero, which is itself unusual (real demand
-    essentially never holds dead flat for multiple hours), unlike a single-hour
+    essentially never holds dead flat for multiple periods), unlike a single-period
     `rate_of_change` of ~0 which happens naturally during calm periods and can't tell the
     two apart.
 
-    `rolling_rate_of_change_mean` is the trailing rolling_window_hours mean of
+    `rolling_rate_of_change_mean` is the trailing rolling_window_periods mean of
     `rate_of_change` -- captures a SUSTAINED directional drift (an abnormal ramp) that a
-    single-hour diff reads as an unremarkable small step, since by construction a ramp's
-    per-hour change is spread thin.
+    single-period diff reads as an unremarkable small step, since by construction a ramp's
+    per-period change is spread thin.
 
     Rows are NOT dropped here even where any column ends up NaN (cold-start, a gap excluded
     by the missing-data policy) -- the caller decides what to do with NaN rows (drop before
@@ -54,9 +59,9 @@ def build_features(
     """
     index = actual.index
     residual = actual - forecast
-    rate_of_change = actual.diff(rate_of_change_lag_hours)
-    rolling_std = actual.rolling(rolling_window_hours).std()
-    rolling_rate_of_change_mean = rate_of_change.rolling(rolling_window_hours).mean()
+    rate_of_change = actual.diff(rate_of_change_lag_periods)
+    rolling_std = actual.rolling(rolling_window_periods).std()
+    rolling_rate_of_change_mean = rate_of_change.rolling(rolling_window_periods).mean()
 
     holidays = _HOLIDAY_CALENDAR.holidays(
         start=index.min().normalize(), end=index.max().normalize()

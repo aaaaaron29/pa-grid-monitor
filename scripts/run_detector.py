@@ -31,7 +31,9 @@ def main() -> None:
     configure_logging(settings.log_level)
 
     log.info("loading EIA demand series from Postgres")
-    raw = load_eia_series(settings.postgres_dsn, start=splits.TRAIN_START, end=splits.FREEZE_DATE)
+    raw = load_eia_series(
+        settings.postgres_dsn, start=splits.EIA_TRAIN_START, end=splits.EIA_FREEZE_DATE
+    )
     values, quality = apply_missing_data_policy(raw)
     usable = values[quality != "excluded"]
 
@@ -41,8 +43,10 @@ def main() -> None:
     # on right at a split boundary, same reasoning as scripts/run_baselines.py.
     forecast = seasonal_naive_predict(usable)
 
-    train_mask = splits.split_mask(usable.index, splits.TRAIN_START, splits.TRAIN_END)
-    val_mask = splits.split_mask(usable.index, splits.VALIDATION_START, splits.VALIDATION_END)
+    train_mask = splits.split_mask(usable.index, splits.EIA_TRAIN_START, splits.EIA_TRAIN_END)
+    val_mask = splits.split_mask(
+        usable.index, splits.EIA_VALIDATION_START, splits.EIA_VALIDATION_END
+    )
 
     train_features = build_features(usable[train_mask], forecast[train_mask])
     val_actual = usable[val_mask]

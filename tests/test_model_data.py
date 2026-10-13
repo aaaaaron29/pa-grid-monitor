@@ -58,7 +58,7 @@ def test_mask_implausible_unknown_reading_type_raises():
 def test_apply_missing_data_policy_forward_fills_short_gap():
     series = pd.Series([100.0, 101.0, np.nan, np.nan, 104.0], index=_hourly_index(5))
 
-    processed, quality = apply_missing_data_policy(series, max_forward_fill_hours=2)
+    processed, quality = apply_missing_data_policy(series, max_forward_fill_periods=2)
 
     assert list(processed) == [100.0, 101.0, 101.0, 101.0, 104.0]
     assert list(quality) == ["ok", "ok", "filled", "filled", "ok"]
@@ -67,7 +67,7 @@ def test_apply_missing_data_policy_forward_fills_short_gap():
 def test_apply_missing_data_policy_excludes_long_gap():
     series = pd.Series([100.0, np.nan, np.nan, np.nan, 104.0], index=_hourly_index(5))
 
-    processed, quality = apply_missing_data_policy(series, max_forward_fill_hours=2)
+    processed, quality = apply_missing_data_policy(series, max_forward_fill_periods=2)
 
     assert processed.iloc[0] == 100.0
     assert processed.iloc[1:4].isna().all()

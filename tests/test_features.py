@@ -63,7 +63,7 @@ def test_rate_of_change_respects_custom_lag():
     idx = _hourly_index(5)
     actual = pd.Series([100.0, 110.0, 120.0, 130.0, 140.0], index=idx)
 
-    feats = build_features(actual, actual, rate_of_change_lag_hours=3)
+    feats = build_features(actual, actual, rate_of_change_lag_periods=3)
 
     assert feats["rate_of_change"].iloc[:3].isna().all()
     assert feats["rate_of_change"].iloc[3] == 30.0  # 130 - 100
@@ -86,7 +86,7 @@ def test_nan_rows_are_kept_not_dropped():
 def test_rolling_std_near_zero_during_a_flat_window():
     idx = _hourly_index(10)
     actual = pd.Series([100.0, 110.0, 90.0, 105.0, 95.0, 50.0, 50.0, 50.0, 50.0, 50.0], index=idx)
-    feats = build_features(actual, actual, rolling_window_hours=4)
+    feats = build_features(actual, actual, rolling_window_periods=4)
     # last 4 points are perfectly flat -> rolling std of that window is 0
     assert feats["rolling_std"].iloc[-1] == 0.0
     # the earlier, genuinely varying window has nonzero rolling std
@@ -96,7 +96,7 @@ def test_rolling_std_near_zero_during_a_flat_window():
 def test_rolling_std_respects_window_length():
     idx = _hourly_index(10)
     actual = pd.Series(range(10), index=idx, dtype=float)
-    feats = build_features(actual, actual, rolling_window_hours=4)
+    feats = build_features(actual, actual, rolling_window_periods=4)
     assert feats["rolling_std"].iloc[:3].isna().all()  # fewer than 4 points available yet
     assert feats["rolling_std"].iloc[3:].notna().all()
 
@@ -105,7 +105,7 @@ def test_rolling_rate_of_change_mean_captures_sustained_drift():
     idx = _hourly_index(10)
     # steady +10/hour drift throughout
     actual = pd.Series([100.0 + 10 * i for i in range(10)], index=idx)
-    feats = build_features(actual, actual, rolling_window_hours=4)
+    feats = build_features(actual, actual, rolling_window_periods=4)
     # once warmed up, a steady +10/hr series has rolling mean rate-of-change == 10
     assert feats["rolling_rate_of_change_mean"].iloc[-1] == pytest.approx(10.0)
 
@@ -113,5 +113,5 @@ def test_rolling_rate_of_change_mean_captures_sustained_drift():
 def test_rolling_rate_of_change_mean_near_zero_for_flat_series():
     idx = _hourly_index(10)
     actual = pd.Series([100.0] * 10, index=idx)
-    feats = build_features(actual, actual, rolling_window_hours=4)
+    feats = build_features(actual, actual, rolling_window_periods=4)
     assert feats["rolling_rate_of_change_mean"].iloc[-1] == pytest.approx(0.0)

@@ -9,7 +9,7 @@ def test_seasonal_naive_predict_shifts_by_lag():
     idx = pd.date_range("2024-01-01", periods=24 * 10, freq="h", tz="UTC")
     series = pd.Series(range(len(idx)), index=idx, dtype=float)
 
-    pred = seasonal_naive_predict(series, lag_hours=24)
+    pred = seasonal_naive_predict(series, lag_periods=24)
 
     # hour 24 should predict hour 0's value (24), etc.
     assert pred.iloc[24] == series.iloc[0]

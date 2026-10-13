@@ -506,6 +506,20 @@ in the README rather than papered over with a precision/recall number that doesn
     thesis is about, while seasonal-naive only looks back one week and tracks a moving
     baseline more closely. The isolation forest's residuals should be scored against
     seasonal-naive specifically, since it is the stronger of the two.
+  - **Private (PJM) tier, same methodology applied with its own reasoning, not copy-pasted
+    (2026-10-13 run, PJM's own split dates, Section 6/splits.py):** per zone, e.g. PECO
+    seasonal-naive MAE=25.4 RMSE=103.9, profile MAE=30.5 RMSE=99.9 (n=10,368 five-minute
+    intervals). Two real, tier-specific findings, not just different numbers: **MAPE is
+    reported as "n/a" rather than a number** for every zone, because real LMP prices cross
+    zero routinely (confirmed: at least one exact $0.00/MWh reading in the validation
+    window alone) and MAPE's denominator is `|actual|` -- division by zero, not a rare edge
+    case for this tier. `model/evaluate.py`'s `ForecastMetrics` now reports MAPE as `None`
+    with a plain explanation rather than a meaningless `inf%` whenever this happens, instead
+    of silently printing a number that looks precise and isn't. Second: **seasonal-naive
+    wins on MAE in 4 of 5 zones, but the profile baseline wins on RMSE in every zone** --
+    the opposite of a clean sweep in either direction, suggesting naive makes smaller
+    typical errors while profile avoids large outlier misses more consistently. Left as an
+    honest, mixed result rather than picking one winner to declare.
 - **The anomaly detector gets a two-part evaluation:**
   1. *Synthetic injection (quantitative).* Inject labeled perturbations into held-out data
      at known timestamps: step changes, spikes, flatlines (stuck-sensor), and abnormal
@@ -555,6 +569,18 @@ in the README rather than papered over with a precision/recall number that doesn
     change, and is deliberately left for a future iteration. The pattern across this whole
     evaluation exercise: investigate until the *why* is understood and defensible, then stop
     and document precisely, rather than keep tuning until one aggregate number looks better.
+  - **Cross-tier confirmation (2026-10-13): the exact same pattern reproduces on PJM LMP
+    data** (PECO zone, 5-minute grain, completely different data type and scale from EIA
+    demand), not just repeated on the same dataset. Spikes: 100% recall both directions.
+    Step change and abnormal ramp: both 0% at an initial conservative magnitude, then 45.8%
+    and 83.3% once properly calibrated against PECO's own real residual tail (-628 to
+    +2,661 $/MWh, confirmed before picking magnitudes rather than guessed) -- magnitude
+    calibration again, not a detector problem, same as the EIA ramp finding. **Flatline:
+    0% recall even at 8 hours** (3x the EIA test's duration), confirming this is a property
+    of the isolation-forest-over-mixed-features approach itself, not an artifact of EIA's
+    specific data or feature choices. Strengthens the case that the real fix (a separate
+    rule-based check, not another diluted input feature) is worth building once, serving
+    both tiers, rather than two independent patches.
 
 ### Retraining, drift, and cold start
 

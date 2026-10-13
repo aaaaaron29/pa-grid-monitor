@@ -50,3 +50,30 @@ def test_evaluate_raises_on_no_overlap():
 
     with pytest.raises(ValueError):
         evaluate(actual, predicted)
+
+
+def test_evaluate_reports_mape_as_none_when_actual_crosses_zero():
+    """Regression guard: this is the exact real-data finding from PJM LMP baselines -- a
+    single $0.00/MWh actual price makes MAPE literally divide by zero (-> inf), which would
+    otherwise silently print a meaningless "inf%" instead of signaling the metric doesn't
+    apply here. Confirmed live (2026-10-13): PJM zone prices routinely cross zero."""
+    idx = pd.date_range("2024-01-01", periods=3, freq="h", tz="UTC")
+    actual = pd.Series([50.0, 0.0, -20.0], index=idx)
+    predicted = pd.Series([55.0, 5.0, -15.0], index=idx)
+
+    metrics = evaluate(actual, predicted)
+
+    assert metrics.mape is None
+    assert metrics.mae == pytest.approx(5.0)  # MAE and RMSE stay valid even when MAPE can't
+    assert "n/a" in str(metrics)
+
+
+def test_evaluate_mape_is_a_normal_float_when_actual_never_crosses_zero():
+    idx = pd.date_range("2024-01-01", periods=2, freq="h", tz="UTC")
+    actual = pd.Series([100.0, 200.0], index=idx)
+    predicted = pd.Series([110.0, 180.0], index=idx)
+
+    metrics = evaluate(actual, predicted)
+
+    assert metrics.mape is not None
+    assert "%" in str(metrics)
