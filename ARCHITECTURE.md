@@ -1,6 +1,6 @@
 # PJM Grid Watch — Architecture
 
-Working name: `pjm-grid-watch` (rename freely — change the repo/folder name, this doc doesn't depend on it).
+Repo: `pa-grid-monitor` (github.com/aaaaaron29/pa-grid-monitor).
 
 ## 1. What this project is
 
