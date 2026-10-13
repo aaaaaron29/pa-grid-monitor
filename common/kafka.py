@@ -50,16 +50,32 @@ def make_producer(bootstrap_servers: str) -> Producer:
 
 
 def make_consumer(bootstrap_servers: str, group_id: str, topics: Iterable[str]) -> Consumer:
+    """enable.auto.commit is deliberately False, not the client's own default of True.
+    Auto-commit fires on its own timer regardless of whether the application actually
+    finished processing a message -- a DB write failure right after a batch of messages was
+    polled but before auto-commit's next tick could still commit their offsets, silently
+    losing rows rather than retrying them. Every consumer in this project writes to
+    Postgres via an idempotent upsert, so re-processing a message on retry is harmless;
+    losing one silently is not. Callers must call commit_offsets() themselves, only after a
+    successful write."""
     consumer = Consumer(
         {
             "bootstrap.servers": bootstrap_servers,
             "group.id": group_id,
             "auto.offset.reset": "earliest",
-            "enable.auto.commit": True,
+            "enable.auto.commit": False,
         }
     )
     consumer.subscribe(list(topics))
     return consumer
+
+
+def commit_offsets(consumer: Consumer) -> None:
+    """Commits up through the last message returned by poll_row -- call this only after
+    that message (or, for a caller that micro-batches, the whole batch ending with it) has
+    been durably written. Synchronous (asynchronous=False) so a commit failure surfaces
+    immediately rather than being silently retried in the background."""
+    consumer.commit(asynchronous=False)
 
 
 def _delivery_callback(err, msg) -> None:
