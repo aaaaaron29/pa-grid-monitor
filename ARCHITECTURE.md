@@ -848,12 +848,16 @@ README.md             documents the public/private data split explicitly for any
    Forecast values are derived in-query as `actual - residual` rather than stored
    separately, since the `residual` column already carries that information.
 
-   Open item: Prometheus and Grafana were added to `docker-compose.yml` after Phase 3's CI
-   verification already passed, and CI has been extended to check both (Prometheus actually
-   scraping the two inference services, Grafana provisioning both dashboards and reaching
-   the Postgres datasource) but that extended check has not yet been confirmed green. Same
-   caveat as Phase 3 originally had: written carefully, not yet proven, verify the next CI
-   run before treating this as done.
+   Confirmed green (2026-10-14): CI's extended compose-smoke-test passes, Prometheus
+   actually scrapes both inference services and Grafana provisions both dashboards and
+   reaches the Postgres datasource, on a real Docker install. Took three real bugs to get
+   there, each a genuine finding, not CI flakiness: a Grafana bind-mount nested inside an
+   already-read-only mount (fixed by moving the dashboard JSON files so one mount covers
+   everything, no nesting); checking Prometheus/Grafana target and provisioning health
+   exactly once right after the app's own HTTP server responds, which races their own
+   async scrape/provisioning cycles (fixed by retrying each check independently); and
+   Grafana's datasource health endpoint being UID-based (`/api/datasources/uid/:uid/health`),
+   not the ID-based path first assumed.
 5. **Deploy**: write the Kubernetes manifests and validate them on a **local k3d/kind
    cluster first**, so the Oracle deploy is "apply known-good manifests" rather than a first
    attempt (and so an A1 capacity shortage delays nothing). Then Oracle Cloud VM + k3s, live
