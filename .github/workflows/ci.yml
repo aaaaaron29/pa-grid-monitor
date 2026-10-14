@@ -291,3 +291,186 @@ jobs:
       - name: Tear down
         if: always()
         run: docker compose down -v
+
+  k8s-smoke-test:
+    # Verifies infra/k8s/ for real: builds and pushes the three images these manifests
+    # actually reference, spins up a disposable kind cluster, applies every manifest except
+    # 09-ingress.yaml (needs cert-manager's CRDs installed first, out of scope here the same
+    # way compose-smoke-test never tests real DNS/TLS), and confirms both inference services
+    # actually come up -- including populating the PJM artifacts PVC the documented way
+    # (06-inference.yaml), not skipping that step.
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Generate throwaway model artifacts
+        # Same construction as compose-smoke-test's step of the same name -- synthetic
+        # data, not a real model, purely so every service has something real to load.
+        run: |
+          python - <<'EOF'
+          from datetime import UTC, datetime
+          from pathlib import Path
+
+          import numpy as np
+          import pandas as pd
+
+          from model.artifact import ModelArtifact
+          from model.detector import Detector
+          from model.features import build_features
+          from model.flatline_detector import calibrate_floor
+
+          def make_artifact(tier, zone, lag_periods, rolling_window, freq):
+              rng = np.random.default_rng(0)
+              n = lag_periods * 3
+              idx = pd.date_range("2024-01-01", periods=n, freq=freq, tz="UTC")
+              train = pd.Series(100.0 + rng.normal(0, 5, n), index=idx)
+              forecast = train.shift(lag_periods)
+              feats = build_features(
+                  train, forecast, rate_of_change_lag_periods=1, rolling_window_periods=rolling_window
+              ).dropna()
+              detector = Detector().fit(feats)
+              detector.calibrate_threshold(detector.score(feats), alert_budget=0.1)
+              floor = calibrate_floor(feats["rolling_std"])
+              return ModelArtifact(
+                  tier=tier, zone=zone, detector=detector, flatline_floor=floor,
+                  rolling_window_periods=rolling_window, rate_of_change_lag_periods=1,
+                  seasonal_naive_lag_periods=lag_periods, trained_at=datetime.now(UTC),
+                  train_rows=len(feats),
+              )
+
+          Path("artifacts").mkdir(exist_ok=True)
+          make_artifact("eia", None, 24 * 7, 4, "h").save("artifacts/eia_detector.joblib")
+          for zone in ["PECO", "PPL", "METED", "PENELEC", "DUQ"]:
+              make_artifact("pjm", zone, 7 * 24 * 12, 12, "5min").save(
+                  f"artifacts/pjm_detector_{zone}.joblib"
+              )
+          EOF
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build and push ingestion image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/aaaaaron29/pa-grid-monitor-ingestion:latest
+
+      - name: Build and push EIA inference image
+        # Bakes in the throwaway artifact generated above, same as compose-smoke-test.
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.inference-eia
+          push: true
+          tags: ghcr.io/aaaaaron29/pa-grid-monitor-eia-inference:latest
+
+      - name: Build and push PJM inference image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.inference-pjm
+          push: true
+          tags: ghcr.io/aaaaaron29/pa-grid-monitor-pjm-inference:latest
+
+      - uses: helm/kind-action@v1
+        with:
+          cluster_name: pjm-grid-watch-ci
+
+      - name: Apply namespace and secrets, then use real GHCR credentials
+        run: |
+          kubectl apply -f infra/k8s/00-namespace.yaml
+          kubectl apply -f infra/k8s/01-secrets.yaml
+          # Overrides the placeholder ghcr-pull-secret from 01-secrets.yaml with real
+          # credentials -- documented as the expected override pattern in that file's own
+          # header comment, not a CI-only special case.
+          kubectl create secret docker-registry ghcr-pull-secret -n pjm-grid-watch \
+            --docker-server=ghcr.io \
+            --docker-username=${{ github.actor }} \
+            --docker-password=${{ secrets.GITHUB_TOKEN }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Apply the rest of the stack (everything except the Ingress)
+        run: |
+          for f in infra/k8s/0[2-8]-*.yaml; do
+            kubectl apply -f "$f"
+          done
+
+      - name: Wait for the migrate Job to complete
+        run: kubectl -n pjm-grid-watch wait --for=condition=complete job/migrate --timeout=180s
+
+      - name: Populate the PJM artifacts PVC via a temporary loader pod
+        # Exactly the procedure documented in infra/k8s/06-inference.yaml's own comment --
+        # a stable helper pod, not cp-ing into pjm-inference's own crash-looping pod (that
+        # races its restart cycle, the same class of timing bug hit twice already with
+        # Prometheus/Grafana readiness in compose-smoke-test).
+        run: |
+          kubectl -n pjm-grid-watch run artifact-loader --image=busybox:1.36 --restart=Never \
+            --overrides='{"spec":{"containers":[{"name":"artifact-loader","image":"busybox:1.36","command":["sleep","3600"],"volumeMounts":[{"name":"artifacts","mountPath":"/app/artifacts"}]}],"volumes":[{"name":"artifacts","persistentVolumeClaim":{"claimName":"pjm-artifacts"}}]}}'
+          kubectl -n pjm-grid-watch wait --for=condition=Ready pod/artifact-loader --timeout=120s
+          for zone in PECO PPL METED PENELEC DUQ; do
+            kubectl -n pjm-grid-watch cp artifacts/pjm_detector_${zone}.joblib artifact-loader:/app/artifacts/pjm_detector_${zone}.joblib
+          done
+          kubectl -n pjm-grid-watch delete pod artifact-loader
+
+      - name: Wait for both inference Deployments to become available
+        # pjm-inference was crash-looping (empty PVC) until the step above; its Deployment
+        # recovers on its own next restart attempt now that the PVC has the files, no
+        # manual restart needed.
+        run: |
+          kubectl -n pjm-grid-watch wait --for=condition=available deployment/eia-inference --timeout=180s
+          kubectl -n pjm-grid-watch wait --for=condition=available deployment/pjm-inference --timeout=180s
+
+      - name: Check both /health endpoints report ready
+        # Retries the actual health check rather than a flat sleep + single curl --
+        # port-forward establishing and the app actually answering are each their own race
+        # (the exact class of timing bug compose-smoke-test hit twice with Prometheus and
+        # Grafana readiness, fixed here before it has the chance to repeat).
+        run: |
+          kubectl -n pjm-grid-watch port-forward svc/eia-inference 8101:8000 &
+          kubectl -n pjm-grid-watch port-forward svc/pjm-inference 8102:8000 &
+          for i in $(seq 1 20); do
+            eia=$(curl -fs http://localhost:8101/health || echo '{}')
+            pjm=$(curl -fs http://localhost:8102/health || echo '{}')
+            echo "attempt $i: eia=$eia pjm=$pjm"
+            if echo "$eia" | grep -q '"model_loaded": *true' \
+               && echo "$pjm" | grep -q '"model_loaded": *true'; then
+              echo "Both inference services healthy through the K8s Services."
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "Timed out waiting for both /health endpoints to report ready."
+          exit 1
+
+      - name: Describe pods and recent events (on failure)
+        if: failure()
+        run: |
+          kubectl -n pjm-grid-watch get pods -o wide
+          kubectl -n pjm-grid-watch describe pods
+          kubectl -n pjm-grid-watch get events --sort-by=.lastTimestamp
+
+      - name: Pod logs (on failure)
+        if: failure()
+        run: |
+          for app in eia-poller eia-consumer pjm-poller pjm-consumer eia-inference pjm-inference; do
+            echo "=== $app ==="
+            kubectl -n pjm-grid-watch logs -l app=$app --tail=100 --all-containers || true
+          done

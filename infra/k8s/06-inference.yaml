@@ -9,6 +9,7 @@ spec:
   template:
     metadata: { labels: { app: eia-inference } }
     spec:
+      imagePullSecrets: [{ name: ghcr-pull-secret }]
       containers:
         - name: eia-inference
           # Architecture.md Section 7: the EIA artifact bakes into the image (public tier,
@@ -40,10 +41,22 @@ spec:
 ---
 # Architecture.md Section 7: a PJM-trained artifact is PJM-derived material and must never
 # be committed or baked into a public image -- it lives on a PVC, mounted at runtime.
-# This PVC starts empty; populate it manually after creating it, e.g.:
-#   kubectl -n pjm-grid-watch cp artifacts/pjm_detector_PECO.joblib \
-#     $(kubectl -n pjm-grid-watch get pod -l app=pjm-inference -o name | head -1 | cut -d/ -f2):/app/artifacts/pjm_detector_PECO.joblib
-#   (repeat for PPL, METED, PENELEC, DUQ)
+# This PVC starts empty. pjm-inference's pod will crash-loop (ModelArtifact.load() raises
+# on a missing file, failing FastAPI's own startup) until it's populated, so copy files in
+# via a separate, stable helper pod -- not directly into the pjm-inference pod itself,
+# which races its own restart cycle (confirmed worth avoiding: this is the same class of
+# timing bug CI's compose-smoke-test hit twice with Prometheus/Grafana readiness checks).
+# The crash-looping Deployment recovers on its own next restart attempt once the PVC
+# already has the files; nothing needs to be deleted or restarted by hand.
+#
+#   kubectl -n pjm-grid-watch run artifact-loader --image=busybox:1.36 --restart=Never \
+#     --overrides='{"spec":{"containers":[{"name":"artifact-loader","image":"busybox:1.36","command":["sleep","3600"],"volumeMounts":[{"name":"artifacts","mountPath":"/app/artifacts"}]}],"volumes":[{"name":"artifacts","persistentVolumeClaim":{"claimName":"pjm-artifacts"}}]}}'
+#   kubectl -n pjm-grid-watch wait --for=condition=Ready pod/artifact-loader --timeout=120s
+#   for zone in PECO PPL METED PENELEC DUQ; do
+#     kubectl -n pjm-grid-watch cp artifacts/pjm_detector_${zone}.joblib artifact-loader:/app/artifacts/pjm_detector_${zone}.joblib
+#   done
+#   kubectl -n pjm-grid-watch delete pod artifact-loader
+#
 # Re-run after retraining. There's no automated artifact-publishing path yet -- that would
 # need its own registry/object-storage story, which is new scope, not part of this phase.
 apiVersion: v1
@@ -68,6 +81,7 @@ spec:
   template:
     metadata: { labels: { app: pjm-inference } }
     spec:
+      imagePullSecrets: [{ name: ghcr-pull-secret }]
       containers:
         - name: pjm-inference
           image: ghcr.io/aaaaaron29/pa-grid-monitor-pjm-inference:latest

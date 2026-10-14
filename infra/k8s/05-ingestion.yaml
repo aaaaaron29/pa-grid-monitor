@@ -16,6 +16,7 @@ spec:
   template:
     metadata: { labels: { app: eia-poller } }
     spec:
+      imagePullSecrets: [{ name: ghcr-pull-secret }]
       containers:
         - name: eia-poller
           image: ghcr.io/aaaaaron29/pa-grid-monitor-ingestion:latest
@@ -43,6 +44,7 @@ spec:
   template:
     metadata: { labels: { app: eia-consumer } }
     spec:
+      imagePullSecrets: [{ name: ghcr-pull-secret }]
       containers:
         - name: eia-consumer
           image: ghcr.io/aaaaaron29/pa-grid-monitor-ingestion:latest
@@ -70,6 +72,7 @@ spec:
   template:
     metadata: { labels: { app: pjm-poller } }
     spec:
+      imagePullSecrets: [{ name: ghcr-pull-secret }]
       containers:
         - name: pjm-poller
           image: ghcr.io/aaaaaron29/pa-grid-monitor-ingestion:latest
@@ -97,6 +100,7 @@ spec:
   template:
     metadata: { labels: { app: pjm-consumer } }
     spec:
+      imagePullSecrets: [{ name: ghcr-pull-secret }]
       containers:
         - name: pjm-consumer
           image: ghcr.io/aaaaaron29/pa-grid-monitor-ingestion:latest
