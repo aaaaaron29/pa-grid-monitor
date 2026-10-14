@@ -1,0 +1,32 @@
+# Local dev / Compose scrape config. Targets are docker-compose.yml's service names on the
+# internal Compose network (each service listens on METRICS_PORT, which defaults to 9100 --
+# common/config.py -- and no service in docker-compose.yml overrides it, so every target
+# below uses the same port). The Oracle k3s deploy (Phase 5) uses Kubernetes service
+# discovery instead of this static file; this one is for Compose-based local dev only.
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: eia-poller
+    static_configs:
+      - targets: ["eia-poller:9100"]
+
+  - job_name: eia-consumer
+    static_configs:
+      - targets: ["eia-consumer:9100"]
+
+  - job_name: pjm-poller
+    static_configs:
+      - targets: ["pjm-poller:9100"]
+
+  - job_name: pjm-consumer
+    static_configs:
+      - targets: ["pjm-consumer:9100"]
+
+  - job_name: eia-inference
+    static_configs:
+      - targets: ["eia-inference:9100"]
+
+  - job_name: pjm-inference
+    static_configs:
+      - targets: ["pjm-inference:9100"]

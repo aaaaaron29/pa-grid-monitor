@@ -834,6 +834,26 @@ README.md             documents the public/private data split explicitly for any
    data; the data-center correlation panel is deferred, see Section 3, so this is PJM zone
    data alone for now). Double-check the public dashboard genuinely has zero PJM-sourced
    panels before enabling external sharing.
+
+   Built (2026-10-14): `common/metrics.py` gained the inference-side counterparts to the
+   existing ingestion metrics (scoring outcome, anomalies flagged by detector type, scoring
+   latency, last-successful-score staleness gauge), wired into both inference services and
+   confirmed emitting real values against a live local run, not just unit-test mocks.
+   `infra/prometheus/prometheus.yml` and `infra/grafana/provisioning/` (datasources +
+   dashboard provisioning) were added, plus both dashboards as provisioned JSON files
+   (`infra/grafana/dashboards/`), matching the panel sketch above. One real correction made
+   while building it: EIA-930 only reports a single net-generation aggregate, not a
+   fuel-type breakdown, so the sketch's "generation mix" panel became "net generation and
+   total interchange" instead, an honest label for what the data actually supports.
+   Forecast values are derived in-query as `actual - residual` rather than stored
+   separately, since the `residual` column already carries that information.
+
+   Open item: Prometheus and Grafana were added to `docker-compose.yml` after Phase 3's CI
+   verification already passed, and CI has been extended to check both (Prometheus actually
+   scraping the two inference services, Grafana provisioning both dashboards and reaching
+   the Postgres datasource) but that extended check has not yet been confirmed green. Same
+   caveat as Phase 3 originally had: written carefully, not yet proven, verify the next CI
+   run before treating this as done.
 5. **Deploy**: write the Kubernetes manifests and validate them on a **local k3d/kind
    cluster first**, so the Oracle deploy is "apply known-good manifests" rather than a first
    attempt (and so an A1 capacity shortage delays nothing). Then Oracle Cloud VM + k3s, live

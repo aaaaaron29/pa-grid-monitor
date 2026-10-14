@@ -1,0 +1,29 @@
+# Provisioned once at container start (Grafana's file-based provisioning, not clicked
+# through the UI, same infra-as-code approach as infra/sql's migrations). Two datasources:
+# Prometheus for pipeline-health panels (staleness, scoring latency, error rates) and
+# Postgres for the actual grid-data panels (demand, LMP, residuals, anomaly log) -- the
+# public dashboard's panel sketch (Architecture.md Section 5) needs real readings and
+# anomaly rows, which live in Postgres, not Prometheus.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: false
+
+  - name: Postgres
+    uid: postgres
+    type: postgres
+    access: proxy
+    url: postgres:5432
+    database: pjm_grid_watch
+    user: pjm_grid_watch
+    secureJsonData:
+      password: pjm_grid_watch
+    jsonData:
+      sslmode: disable
+      postgresVersion: 1600
+      timescaledb: false

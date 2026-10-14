@@ -165,8 +165,10 @@ jobs:
           PJM_API_KEY=unused-in-ci
           EOF
 
-      - name: Bring up infra + both inference services
-        run: docker compose up -d --build postgres kafka migrate eia-inference pjm-inference
+      - name: Bring up infra + both inference services + observability
+        run: >
+          docker compose up -d --build
+          postgres kafka migrate eia-inference pjm-inference prometheus grafana
 
       - name: Wait for both inference services to report healthy
         run: |
@@ -185,6 +187,47 @@ jobs:
           done
           echo "Timed out waiting for inference services to report healthy."
           exit 1
+
+      - name: Wait for Prometheus and check it's actually scraping
+        run: |
+          for i in $(seq 1 20); do
+            if curl -fs http://localhost:9090/-/ready >/dev/null; then break; fi
+            sleep 3
+          done
+          curl -fs http://localhost:9090/-/ready
+          # eia-inference and pjm-inference are the two targets actually started in this
+          # job; confirm Prometheus reaches them (not just that it's up itself).
+          targets=$(curl -fs 'http://localhost:9090/api/v1/targets')
+          echo "$targets"
+          for job in eia-inference pjm-inference; do
+            up=$(echo "$targets" | python -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          matches = [t for t in data['data']['activeTargets'] if t['labels']['job'] == '$job']
+          print(matches[0]['health'] if matches else 'missing')
+          ")
+            echo "$job: $up"
+            [ "$up" = "up" ] || { echo "Prometheus target $job is not up"; exit 1; }
+          done
+
+      - name: Wait for Grafana and check both dashboards were provisioned
+        run: |
+          for i in $(seq 1 20); do
+            if curl -fs http://localhost:3000/api/health >/dev/null; then break; fi
+            sleep 3
+          done
+          curl -fs http://localhost:3000/api/health
+          dashboards=$(curl -fs -u admin:pjm_grid_watch 'http://localhost:3000/api/search?type=dash-db')
+          echo "$dashboards"
+          for uid in pjm-grid-watch-public-eia pjm-grid-watch-private-pjm; do
+            echo "$dashboards" | grep -q "\"$uid\"" || { echo "dashboard $uid not provisioned"; exit 1; }
+          done
+          # The Postgres datasource is what every panel in both dashboards actually queries;
+          # confirm Grafana can reach it, not just that the dashboard JSON loaded.
+          ds=$(curl -fs -u admin:pjm_grid_watch 'http://localhost:3000/api/datasources/name/Postgres')
+          ds_id=$(echo "$ds" | python -c "import json,sys; print(json.load(sys.stdin)['id'])")
+          curl -fs -u admin:pjm_grid_watch "http://localhost:3000/api/datasources/$ds_id/health" \
+            | tee /dev/stderr | grep -q '"status":"OK"'
 
       - name: Logs (on failure)
         if: failure()

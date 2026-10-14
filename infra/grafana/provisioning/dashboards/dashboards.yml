@@ -1,0 +1,16 @@
+# Points Grafana at the JSON dashboard files in infra/grafana/dashboards/, loaded once at
+# container start. Editing a dashboard in the UI and wanting to keep it means exporting its
+# JSON back to this directory -- these files are the source of truth, not what's in a
+# running Grafana's database.
+apiVersion: 1
+
+providers:
+  - name: pjm-grid-watch
+    orgId: 1
+    folder: ""
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/files

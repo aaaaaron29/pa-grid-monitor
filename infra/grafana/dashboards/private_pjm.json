@@ -1,0 +1,180 @@
+{
+  "title": "PJM Grid Watch: Private (PJM zones)",
+  "uid": "pjm-grid-watch-private-pjm",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "timezone": "America/New_York",
+  "time": { "from": "now-24h", "to": "now" },
+  "refresh": "1m",
+  "tags": ["pjm-grid-watch", "private"],
+  "templating": {
+    "list": [
+      {
+        "name": "zone",
+        "type": "custom",
+        "query": "PECO,PPL,METED,PENELEC,DUQ",
+        "current": { "text": "PECO", "value": "PECO" },
+        "includeAll": false,
+        "multi": false
+      }
+    ]
+  },
+  "annotations": {
+    "list": [
+      {
+        "name": "Flagged anomalies",
+        "enable": true,
+        "iconColor": "red",
+        "datasource": {"type": "postgres", "uid": "postgres"},
+        "target": {
+          "rawSql": "SELECT period_start AS time, 'anomaly' AS text, CASE WHEN forest_flagged THEN 'forest' ELSE 'flatline' END AS tags FROM pjm_lmp_anomalies WHERE zone='$zone' AND (forest_flagged OR flatline_flagged) AND $__timeFilter(period_start)",
+          "format": "table"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Current LMP ($zone)",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "datasource": {"type": "postgres", "uid": "postgres"},
+      "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 2 }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawSql": "SELECT lmp_price AS value FROM pjm_lmp_readings WHERE zone='$zone' AND quality != 'missing' ORDER BY period_start DESC LIMIT 1"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "24h peak LMP ($zone)",
+      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 },
+      "datasource": {"type": "postgres", "uid": "postgres"},
+      "fieldConfig": { "defaults": { "unit": "currencyUSD", "decimals": 2 }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawSql": "SELECT max(lmp_price) AS value FROM pjm_lmp_readings WHERE zone='$zone' AND period_start > now() - interval '24 hours'"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Data freshness ($zone)",
+      "description": "Time since the most recent LMP reading for this zone. The live feed posts every 5 minutes, so a healthy value here is well under 10 minutes.",
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 },
+      "datasource": {"type": "postgres", "uid": "postgres"},
+      "fieldConfig": { "defaults": { "unit": "s", "decimals": 0 }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawSql": "SELECT extract(epoch from (now() - max(period_start))) AS value FROM pjm_lmp_readings WHERE zone='$zone'"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Anomalies flagged, this zone (7d)",
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
+      "datasource": {"type": "postgres", "uid": "postgres"},
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0 }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawSql": "SELECT count(*) AS value FROM pjm_lmp_anomalies WHERE zone='$zone' AND (forest_flagged OR flatline_flagged) AND scored_at > now() - interval '7 days'"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "All 5 zones, anomalies flagged (7d)",
+      "description": "Cross-zone view, independent of the $zone selector above, so a stress event isolated to one zone is still visible from this panel.",
+      "gridPos": { "x": 0, "y": 4, "w": 24, "h": 4 },
+      "datasource": {"type": "postgres", "uid": "postgres"},
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 0 }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawSql": "SELECT zone AS \"Zone\", count(*) AS \"Anomalies (7d)\" FROM pjm_lmp_anomalies WHERE (forest_flagged OR flatline_flagged) AND scored_at > now() - interval '7 days' GROUP BY zone ORDER BY zone"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "LMP vs forecast ($zone)",
+      "description": "Forecast is the seasonal-naive baseline the detector scores against (7-day lag at 5-minute grain), derived as actual - residual, not a separately stored column.",
+      "gridPos": { "x": 0, "y": 8, "w": 24, "h": 9 },
+      "datasource": {"type": "postgres", "uid": "postgres"},
+      "fieldConfig": { "defaults": { "unit": "currencyUSD" }, "overrides": [] },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "time_series",
+          "rawSql": "SELECT r.period_start AS time, r.lmp_price AS actual, (r.lmp_price - a.residual) AS forecast FROM pjm_lmp_readings r LEFT JOIN pjm_lmp_anomalies a ON a.period_start = r.period_start AND a.zone = r.zone WHERE r.zone='$zone' AND $__timeFilter(r.period_start) ORDER BY r.period_start"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Forecast residuals ($zone)",
+      "description": "The series the isolation forest actually scores. Flagged points are overlaid separately so you can see why something was flagged.",
+      "gridPos": { "x": 0, "y": 17, "w": 24, "h": 8 },
+      "datasource": {"type": "postgres", "uid": "postgres"},
+      "fieldConfig": {
+        "defaults": { "unit": "currencyUSD" },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "flagged" },
+            "properties": [{ "id": "custom.drawStyle", "value": "points" }]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "time_series",
+          "rawSql": "SELECT period_start AS time, residual, CASE WHEN forest_flagged THEN residual ELSE NULL END AS flagged FROM pjm_lmp_anomalies WHERE zone='$zone' AND $__timeFilter(period_start) ORDER BY period_start"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "table",
+      "title": "Anomaly log ($zone)",
+      "gridPos": { "x": 0, "y": 25, "w": 24, "h": 8 },
+      "datasource": {"type": "postgres", "uid": "postgres"},
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawSql": "SELECT period_start AS \"Time\", residual AS \"Residual ($/MWh)\", forest_score AS \"Forest score\", forest_flagged AS \"Forest flagged\", flatline_flagged AS \"Flatline flagged\", scored_at AS \"Scored at\" FROM pjm_lmp_anomalies WHERE zone='$zone' AND (forest_flagged OR flatline_flagged) AND $__timeFilter(period_start) ORDER BY period_start DESC LIMIT 100"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "text",
+      "title": "Methodology and scope",
+      "gridPos": { "x": 0, "y": 33, "w": 24, "h": 7 },
+      "options": {
+        "mode": "markdown",
+        "content": "**How this detector works.** Same method as the public dashboard: an isolation forest on forecast residuals plus rolling context, fit per zone on a time-based train/validation split, with a separate rule-based flatline check running alongside it. No real anomaly labels exist for this data; detector quality is measured via synthetic-anomaly injection on held-out data, a check on the method, not a guarantee about real events. **Data-center interconnection correlation is not shown here.** It was planned as a core feature but is confirmed deferred (ARCHITECTURE.md Section 3): PJM's Large Load Registry took effect 2026-10-12 and public access, once defined, will be aggregated-only; PJM's own compliance filing describing the actual access mechanism is not due until around 2026-11-08. There is nothing to correlate against yet. This dashboard and its underlying data are PJM Data Miner 2 sourced and are never exposed on the public dashboard or any externally shared link, per PJM's non-member redistribution terms."
+      }
+    }
+  ]
+}
