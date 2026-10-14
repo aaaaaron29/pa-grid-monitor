@@ -233,17 +233,52 @@ jobs:
             sleep 3
           done
           curl -fs http://localhost:3000/api/health
-          dashboards=$(curl -fs -u admin:pjm_grid_watch 'http://localhost:3000/api/search?type=dash-db')
-          echo "$dashboards"
-          for uid in pjm-grid-watch-public-eia pjm-grid-watch-private-pjm; do
-            echo "$dashboards" | grep -q "\"$uid\"" || { echo "dashboard $uid not provisioned"; exit 1; }
+
+          # Dashboard and datasource provisioning are both async, file-based steps that can
+          # finish slightly after Grafana's HTTP server itself starts responding to
+          # /api/health -- same class of race as the Prometheus scrape-cycle fix above.
+          # Confirmed live in CI (2026-10-14): both dashboards provisioned fine (visible in
+          # the search output) but the Postgres datasource lookup right after failed with no
+          # diagnostic output at all, consistent with set -e killing the script on a curl
+          # that ran before provisioning had actually finished. Retry each stage instead of
+          # checking once right after /api/health responds.
+          for i in $(seq 1 20); do
+            dashboards=$(curl -fs -u admin:pjm_grid_watch 'http://localhost:3000/api/search?type=dash-db' || echo '[]')
+            if echo "$dashboards" | grep -q '"pjm-grid-watch-public-eia"' \
+               && echo "$dashboards" | grep -q '"pjm-grid-watch-private-pjm"'; then
+              echo "Both dashboards provisioned."
+              break
+            fi
+            echo "attempt $i: dashboards not provisioned yet -- $dashboards"
+            sleep 3
+            [ "$i" = "20" ] && { echo "Timed out waiting for both dashboards."; exit 1; }
           done
+
+          for i in $(seq 1 20); do
+            ds=$(curl -fs -u admin:pjm_grid_watch 'http://localhost:3000/api/datasources/name/Postgres' || echo '{}')
+            ds_id=$(echo "$ds" | python -c "import json,sys; print(json.load(sys.stdin).get('id',''))")
+            if [ -n "$ds_id" ]; then
+              echo "Postgres datasource found, id=$ds_id"
+              break
+            fi
+            echo "attempt $i: Postgres datasource not registered yet -- $ds"
+            sleep 3
+            [ "$i" = "20" ] && { echo "Timed out waiting for the Postgres datasource."; exit 1; }
+          done
+
           # The Postgres datasource is what every panel in both dashboards actually queries;
-          # confirm Grafana can reach it, not just that the dashboard JSON loaded.
-          ds=$(curl -fs -u admin:pjm_grid_watch 'http://localhost:3000/api/datasources/name/Postgres')
-          ds_id=$(echo "$ds" | python -c "import json,sys; print(json.load(sys.stdin)['id'])")
-          curl -fs -u admin:pjm_grid_watch "http://localhost:3000/api/datasources/$ds_id/health" \
-            | tee /dev/stderr | grep -q '"status":"OK"'
+          # confirm Grafana can reach it, not just that it was registered.
+          for i in $(seq 1 20); do
+            health=$(curl -fs -u admin:pjm_grid_watch "http://localhost:3000/api/datasources/$ds_id/health" || echo '{}')
+            echo "attempt $i: datasource health -> $health"
+            if echo "$health" | grep -q '"status":"OK"'; then
+              echo "Postgres datasource is healthy."
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "Timed out waiting for the Postgres datasource to report healthy."
+          exit 1
 
       - name: Logs (on failure)
         if: failure()
