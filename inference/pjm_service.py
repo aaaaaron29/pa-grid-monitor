@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
@@ -36,7 +37,13 @@ from common.config import Settings, get_settings
 from common.db import connect, upsert_pjm_lmp_anomalies
 from common.kafka import TOPIC_PJM_RAW, commit_offsets, make_consumer, poll_row
 from common.logging import configure_logging
-from common.metrics import start_metrics_server
+from common.metrics import (
+    ANOMALIES_FLAGGED_TOTAL,
+    LAST_SUCCESSFUL_SCORE_TS,
+    SCORING_LATENCY_SECONDS,
+    SCORING_RUNS_TOTAL,
+    start_metrics_server,
+)
 from model.artifact import ModelArtifact
 from model.data import apply_missing_data_policy
 from model.data_pjm import ZONES, load_pjm_series
@@ -46,6 +53,7 @@ log = logging.getLogger(__name__)
 
 ARTIFACT_PATH_TEMPLATE = "artifacts/pjm_detector_{zone}.joblib"
 MAX_FORWARD_FILL_PERIODS = 3  # matches model/train.py's PJM_MAX_FORWARD_FILL_PERIODS
+TIER = "pjm"
 
 _state: dict = {"artifacts": {}, "last_scored_at": None, "consumer_alive": False}
 _stop_event = threading.Event()
@@ -94,14 +102,31 @@ def _score_and_store(settings: Settings, artifacts: dict[str, ModelArtifact], ro
             "skipping score, insufficient settled history",
             extra={"zone": row["zone"], "period_start": row["period_start"]},
         )
+        # Worth tracking: this is exactly the symptom of the real pjm_lmp_readings gap
+        # confirmed live 2026-10-13 (see module docstring), not routine noise.
+        SCORING_RUNS_TOTAL.labels(tier=TIER, outcome="skipped").inc()
         return
 
-    result = score_latest(series, artifact)
-    result["zone"] = row["zone"]
-    result["scored_at"] = datetime.now(UTC)
+    started = time.monotonic()
+    try:
+        result = score_latest(series, artifact)
+        result["zone"] = row["zone"]
+        result["scored_at"] = datetime.now(UTC)
 
-    with connect(settings.postgres_dsn) as conn:
-        upsert_pjm_lmp_anomalies(conn, [result])
+        with connect(settings.postgres_dsn) as conn:
+            upsert_pjm_lmp_anomalies(conn, [result])
+    except Exception:
+        SCORING_RUNS_TOTAL.labels(tier=TIER, outcome="error").inc()
+        raise
+    finally:
+        SCORING_LATENCY_SECONDS.labels(tier=TIER).observe(time.monotonic() - started)
+
+    SCORING_RUNS_TOTAL.labels(tier=TIER, outcome="scored").inc()
+    LAST_SUCCESSFUL_SCORE_TS.labels(tier=TIER).set(result["scored_at"].timestamp())
+    if result["forest_flagged"]:
+        ANOMALIES_FLAGGED_TOTAL.labels(tier=TIER, zone=row["zone"], detector="forest").inc()
+    if result["flatline_flagged"]:
+        ANOMALIES_FLAGGED_TOTAL.labels(tier=TIER, zone=row["zone"], detector="flatline").inc()
 
     _state["last_scored_at"] = result["scored_at"]
     if result["forest_flagged"] or result["flatline_flagged"]:

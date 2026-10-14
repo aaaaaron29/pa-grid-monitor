@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
@@ -37,7 +38,13 @@ from common.config import Settings, get_settings
 from common.db import connect, upsert_eia_anomalies
 from common.kafka import TOPIC_EIA_RAW, commit_offsets, make_consumer, poll_row
 from common.logging import configure_logging
-from common.metrics import start_metrics_server
+from common.metrics import (
+    ANOMALIES_FLAGGED_TOTAL,
+    LAST_SUCCESSFUL_SCORE_TS,
+    SCORING_LATENCY_SECONDS,
+    SCORING_RUNS_TOTAL,
+    start_metrics_server,
+)
 from model.artifact import ModelArtifact
 from model.data import apply_missing_data_policy, load_eia_series
 from model.score import min_history_periods, score_latest
@@ -46,6 +53,8 @@ log = logging.getLogger(__name__)
 
 ARTIFACT_PATH = "artifacts/eia_detector.joblib"
 SCORED_READING_TYPE = "D"
+TIER = "eia"
+ZONE_LABEL = "none"  # EIA has no zones; see common/metrics.py's ANOMALIES_FLAGGED_TOTAL
 
 _state: dict = {"artifact": None, "last_scored_at": None, "consumer_alive": False}
 _stop_event = threading.Event()
@@ -82,7 +91,8 @@ def _build_history_plus_current(
 
 def _score_and_store(settings: Settings, artifact: ModelArtifact, row: dict) -> None:
     if row["reading_type"] != SCORED_READING_TYPE:
-        return  # this artifact only knows demand; see module docstring
+        return  # this artifact only knows demand; see module docstring -- not a "skipped"
+        # scoring run, this row was never a candidate for this detector in the first place
 
     series = _build_history_plus_current(settings, artifact, row)
     if series is None:
@@ -90,14 +100,33 @@ def _score_and_store(settings: Settings, artifact: ModelArtifact, row: dict) -> 
             "skipping score, insufficient settled history",
             extra={"period_start": row["period_start"]},
         )
+        # Worth tracking: a persistently high skip rate here is exactly the symptom of a
+        # real upstream history gap (confirmed live for PJM, 2026-10-13: the raw-ingestion
+        # consumer wasn't running continuously), not routine noise like the reading_type
+        # filter above.
+        SCORING_RUNS_TOTAL.labels(tier=TIER, outcome="skipped").inc()
         return
 
-    result = score_latest(series, artifact)
-    result["reading_type"] = row["reading_type"]
-    result["scored_at"] = datetime.now(UTC)
+    started = time.monotonic()
+    try:
+        result = score_latest(series, artifact)
+        result["reading_type"] = row["reading_type"]
+        result["scored_at"] = datetime.now(UTC)
 
-    with connect(settings.postgres_dsn) as conn:
-        upsert_eia_anomalies(conn, [result])
+        with connect(settings.postgres_dsn) as conn:
+            upsert_eia_anomalies(conn, [result])
+    except Exception:
+        SCORING_RUNS_TOTAL.labels(tier=TIER, outcome="error").inc()
+        raise
+    finally:
+        SCORING_LATENCY_SECONDS.labels(tier=TIER).observe(time.monotonic() - started)
+
+    SCORING_RUNS_TOTAL.labels(tier=TIER, outcome="scored").inc()
+    LAST_SUCCESSFUL_SCORE_TS.labels(tier=TIER).set(result["scored_at"].timestamp())
+    if result["forest_flagged"]:
+        ANOMALIES_FLAGGED_TOTAL.labels(tier=TIER, zone=ZONE_LABEL, detector="forest").inc()
+    if result["flatline_flagged"]:
+        ANOMALIES_FLAGGED_TOTAL.labels(tier=TIER, zone=ZONE_LABEL, detector="flatline").inc()
 
     _state["last_scored_at"] = result["scored_at"]
     if result["forest_flagged"] or result["flatline_flagged"]:

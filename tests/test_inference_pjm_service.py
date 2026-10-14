@@ -1,11 +1,21 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from unittest.mock import patch
 
+import numpy as np
 import pandas as pd
 
+from common.metrics import (
+    ANOMALIES_FLAGGED_TOTAL,
+    LAST_SUCCESSFUL_SCORE_TS,
+    SCORING_RUNS_TOTAL,
+)
 from inference.pjm_service import _build_history_plus_current, _score_and_store
+from model.artifact import ModelArtifact
+from model.detector import Detector
+from model.features import build_features
 
 
 def test_score_and_store_skips_rows_for_unknown_zones():
@@ -72,6 +82,88 @@ def test_build_history_plus_current_returns_none_when_not_enough_settled_history
             settings=_fake_settings(), artifact=_fake_artifact(), row=row
         )
     assert result is None
+
+
+def test_score_and_store_records_success_and_anomaly_metrics(monkeypatch):
+    """Same as the EIA service's equivalent test: a real ModelArtifact (score_latest needs a
+    real .detector), checking the actual Prometheus counters/gauge get updated, zone-labeled
+    this time since PJM has real zones unlike EIA."""
+    artifact = _real_artifact()
+    idx = pd.date_range("2024-01-01", periods=100, freq="5min", tz="UTC")
+    rng = np.random.default_rng(7)
+    history = pd.Series(30.0 + rng.normal(0, 2, 100), index=idx)
+    row = {
+        "zone": "PECO",
+        "period_start": "2024-01-01T08:20:00+00:00",  # history's next 5-min tick, no gap
+        "lmp_price": 50_000.0,  # wildly extreme -- forces a real forest-flagged anomaly
+    }
+    written = []
+
+    monkeypatch.setattr("inference.pjm_service.load_pjm_series", lambda *a, **k: history)
+    monkeypatch.setattr("inference.pjm_service.connect", _fake_connect)
+    monkeypatch.setattr(
+        "inference.pjm_service.upsert_pjm_lmp_anomalies",
+        lambda conn, rows: written.extend(rows),
+    )
+
+    scored_before = SCORING_RUNS_TOTAL.labels(tier="pjm", outcome="scored")._value.get()
+    forest_before = ANOMALIES_FLAGGED_TOTAL.labels(
+        tier="pjm", zone="PECO", detector="forest"
+    )._value.get()
+
+    _score_and_store(settings=_fake_settings(), artifacts={"PECO": artifact}, row=row)
+
+    assert len(written) == 1
+    assert written[0]["forest_flagged"] is True
+    assert SCORING_RUNS_TOTAL.labels(tier="pjm", outcome="scored")._value.get() == scored_before + 1
+    assert (
+        ANOMALIES_FLAGGED_TOTAL.labels(tier="pjm", zone="PECO", detector="forest")._value.get()
+        == forest_before + 1
+    )
+    assert LAST_SUCCESSFUL_SCORE_TS.labels(tier="pjm")._value.get() > 0
+
+
+def test_score_and_store_records_skipped_metric_on_insufficient_history(monkeypatch):
+    monkeypatch.setattr(
+        "inference.pjm_service._build_history_plus_current", lambda *a, **k: None
+    )
+    row = {"zone": "PECO", "period_start": "2026-01-01T00:00:00+00:00"}
+
+    skipped_before = SCORING_RUNS_TOTAL.labels(tier="pjm", outcome="skipped")._value.get()
+    _score_and_store(
+        settings=_fake_settings(), artifacts={"PECO": _fake_artifact()}, row=row
+    )
+    skipped_after = SCORING_RUNS_TOTAL.labels(tier="pjm", outcome="skipped")._value.get()
+    assert skipped_after == skipped_before + 1
+
+
+@contextmanager
+def _fake_connect(dsn):
+    yield object()
+
+
+def _real_artifact(lag_periods: int = 24, rolling_window: int = 12) -> ModelArtifact:
+    rng = np.random.default_rng(0)
+    n = lag_periods * 3
+    idx = pd.date_range("2023-01-01", periods=n, freq="5min", tz="UTC")
+    train = pd.Series(30.0 + rng.normal(0, 3, n), index=idx)
+    forecast = train.shift(lag_periods)
+    feats = build_features(
+        train, forecast, rate_of_change_lag_periods=1, rolling_window_periods=rolling_window
+    ).dropna()
+    detector = Detector().fit(feats)
+    detector.calibrate_threshold(detector.score(feats), alert_budget=0.1)
+    return ModelArtifact(
+        tier="pjm",
+        zone="PECO",
+        detector=detector,
+        flatline_floor=1.0,  # high enough that the extreme-value test case never flatlines
+        rolling_window_periods=rolling_window,
+        rate_of_change_lag_periods=1,
+        seasonal_naive_lag_periods=lag_periods,
+        trained_at=datetime.now(UTC),
+        train_rows=len(feats),
+    )
 
 
 def _fake_artifact():
