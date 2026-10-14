@@ -133,3 +133,54 @@ def fetch_pjm_lmp_readings(
             (zone, start, end),
         )
         return cur.fetchall()
+
+
+# Anomaly results, written by the FastAPI inference services (Phase 3). Plain REPLACE
+# semantics (not a change-aware WHERE guard like the readings upserts) -- a re-score always
+# reflects the current model/threshold, so the latest score should always win, unlike a raw
+# reading where an unverified value shouldn't be allowed to clobber a verified one.
+_UPSERT_EIA_ANOMALY = """
+INSERT INTO eia_anomalies
+    (period_start, reading_type, residual, forest_score, forest_flagged, flatline_flagged,
+     scored_at)
+VALUES
+    (%(period_start)s, %(reading_type)s, %(residual)s, %(forest_score)s,
+     %(forest_flagged)s, %(flatline_flagged)s, %(scored_at)s)
+ON CONFLICT (period_start, reading_type) DO UPDATE SET
+    residual = EXCLUDED.residual,
+    forest_score = EXCLUDED.forest_score,
+    forest_flagged = EXCLUDED.forest_flagged,
+    flatline_flagged = EXCLUDED.flatline_flagged,
+    scored_at = EXCLUDED.scored_at
+"""
+
+
+def upsert_eia_anomalies(conn: psycopg.Connection, rows: Sequence[dict[str, Any]]) -> int:
+    if not rows:
+        return 0
+    with conn.cursor() as cur:
+        cur.executemany(_UPSERT_EIA_ANOMALY, rows)
+    return len(rows)
+
+
+_UPSERT_PJM_LMP_ANOMALY = """
+INSERT INTO pjm_lmp_anomalies
+    (zone, period_start, residual, forest_score, forest_flagged, flatline_flagged, scored_at)
+VALUES
+    (%(zone)s, %(period_start)s, %(residual)s, %(forest_score)s,
+     %(forest_flagged)s, %(flatline_flagged)s, %(scored_at)s)
+ON CONFLICT (zone, period_start) DO UPDATE SET
+    residual = EXCLUDED.residual,
+    forest_score = EXCLUDED.forest_score,
+    forest_flagged = EXCLUDED.forest_flagged,
+    flatline_flagged = EXCLUDED.flatline_flagged,
+    scored_at = EXCLUDED.scored_at
+"""
+
+
+def upsert_pjm_lmp_anomalies(conn: psycopg.Connection, rows: Sequence[dict[str, Any]]) -> int:
+    if not rows:
+        return 0
+    with conn.cursor() as cur:
+        cur.executemany(_UPSERT_PJM_LMP_ANOMALY, rows)
+    return len(rows)

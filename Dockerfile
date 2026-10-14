@@ -1,6 +1,7 @@
-# Ingestion services image (EIA poller today; PJM poller/queue scraper join this image or a
-# sibling once built). linux/arm64 for the Oracle Ampere A1 target, built via buildx
-# (Architecture.md Section 7); also builds fine as linux/amd64 for local dev.
+# Ingestion services image: EIA poller + consumer, PJM poller + consumer all share this one
+# image, selected at runtime via CMD (see docker-compose.yml). linux/arm64 for the Oracle
+# Ampere A1 target, built via buildx (Architecture.md Section 7); also builds fine as
+# linux/amd64 for local dev.
 FROM python:3.12-slim AS base
 
 WORKDIR /app
@@ -12,6 +13,7 @@ COPY pyproject.toml ./
 COPY common ./common
 COPY ingestion ./ingestion
 COPY scripts ./scripts
+COPY infra ./infra
 
 RUN pip install --no-cache-dir .
 

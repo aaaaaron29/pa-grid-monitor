@@ -1,0 +1,140 @@
+# Local dev stack only (Architecture.md Section 7: "real Kubernetes, not just Docker
+# Compose. Compose is for local dev"). Single-broker Kafka in KRaft mode (no Zookeeper),
+# matching the no-Docker local setup used earlier in development. .env (see .env.example)
+# supplies the EIA/PJM API keys; POSTGRES_DSN and KAFKA_BOOTSTRAP_SERVERS are overridden
+# below per service to use Compose service names instead of .env's "localhost" defaults,
+# which are meant for the non-Docker local setup.
+#
+# NOTE: authored against the real local setup's version (Kafka 4.3.1) and the project's
+# actual module entry points, but not yet run against a real `docker compose up` -- this
+# dev machine has no Docker install. Treat this as a careful first draft to verify on a
+# machine that has Docker before relying on it.
+
+x-app-env: &app-env
+  env_file: .env
+  environment:
+    POSTGRES_DSN: postgresql://pjm_grid_watch:pjm_grid_watch@postgres:5432/pjm_grid_watch
+    KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: pjm_grid_watch
+      POSTGRES_PASSWORD: pjm_grid_watch
+      POSTGRES_DB: pjm_grid_watch
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pjm_grid_watch"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "5432:5432"
+
+  kafka:
+    image: apache/kafka:4.3.1
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    ports:
+      - "9092:9092"
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    <<: *app-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["python", "scripts/apply_migrations.py"]
+
+  eia-poller:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    <<: *app-env
+    depends_on:
+      kafka:
+        condition: service_healthy
+    command: ["ingestion.eia_poller"]
+
+  eia-consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    <<: *app-env
+    depends_on:
+      kafka:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    command: ["ingestion.eia_poller.consumer"]
+
+  pjm-poller:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    <<: *app-env
+    depends_on:
+      kafka:
+        condition: service_healthy
+    command: ["ingestion.pjm_poller"]
+
+  pjm-consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    <<: *app-env
+    depends_on:
+      kafka:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    command: ["ingestion.pjm_poller.consumer"]
+
+  eia-inference:
+    build:
+      context: .
+      dockerfile: Dockerfile.inference-eia
+    <<: *app-env
+    depends_on:
+      kafka:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "8101:8000"
+
+  pjm-inference:
+    build:
+      context: .
+      dockerfile: Dockerfile.inference-pjm
+    <<: *app-env
+    depends_on:
+      kafka:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      # Architecture.md Section 7: the PJM artifact is never baked into the image, only
+      # mounted at runtime -- train it locally first (scripts/train_detector_pjm.py).
+      - ./artifacts:/app/artifacts:ro
+    ports:
+      - "8102:8000"
+
+volumes:
+  postgres_data:

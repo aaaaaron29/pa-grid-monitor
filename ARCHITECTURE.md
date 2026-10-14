@@ -764,6 +764,45 @@ README.md             documents the public/private data split explicitly for any
    the baseline numbers next to the model's.
 3. **Pipeline wiring**: Kafka producers/consumers for both tiers, FastAPI inference
    service(s), Docker Compose local stack end-to-end.
+
+   Built and verified (2026-10-13), no Docker/admin rights available on the dev machine, so
+   Kafka (KRaft mode, single broker), Postgres, and the two inference services were run
+   against the real stack through portable binaries (no containers) instead:
+   - Manual Kafka offset commits only after a successful Postgres write, confirmed against
+     a real broker with both a dropped-write and a successful-write test case.
+     `KafkaError.retriable()` looked like the right signal for "nothing to read yet" and
+     turned out not to be: `UNKNOWN_TOPIC_OR_PART` has `retriable() == False` even though
+     polling again a moment later works with no special handling. Replaced with a curated
+     set of non-fatal error codes, confirmed against the real broker, not assumed.
+   - Model artifacts persisted via `joblib` (`model/artifact.py`), trained off-cluster
+     (`scripts/train_detector_eia.py`, `scripts/train_detector_pjm.py`), loaded by each
+     inference service at startup rather than re-fit per container start. Confirmed
+     identical scores before and after save/load for both tiers.
+   - The race between the inference service's own scoring and the separate raw-write
+     consumer (both read the same Kafka topic independently, no ordering guarantee between
+     them) is avoided by design: the point being scored always comes from the Kafka message
+     itself; Postgres is only queried for history strictly before it.
+   - Real-time round trip confirmed for the EIA service: a fresh row produced to Kafka
+     reached a written anomaly row in Postgres in under 5 seconds. A force-killed service
+     instance (`Stop-Process -Force`, the equivalent of a container being killed without a
+     grace period) left a stale session on its consumer group, delaying the next instance's
+     rebalance well past the broker-reported lag reaching zero, not a code bug but a real
+     reason production should terminate these processes with a grace period, not a hard
+     kill.
+   - The PJM service's live round trip could not be demonstrated the same way during this
+     pass: its seasonal-naive lag needs roughly a week of dense trailing history, and
+     `pjm_lmp_readings` had a real multi-hour gap right before the current time because the
+     PJM raw-ingestion consumer hadn't been running continuously. The unverified live feed
+     only ever returns the most recent interval, so that gap cannot be backfilled after the
+     fact; the verified feed that could backfill it reconciles the next day. The service
+     correctly declined to score rather than scoring on a thin window, confirmed as
+     intended behavior via a mocked-history unit test, the same way the EIA service's logic
+     was unit-tested before its live demo.
+   - `docker-compose.yml` and the two inference-service Dockerfiles are written (matching
+     Section 7's per-tier artifact policy: the EIA image bakes its artifact in, the PJM
+     image mounts it at runtime) but not yet run against a real `docker compose up`: this
+     dev machine has no Docker install. Verify on a machine that has Docker before relying
+     on it.
 4. **Observability**: Prometheus + two Grafana dashboards: the public one (EIA-only data,
    shared via Grafana's Externally Shared Dashboards feature) and the private one (PJM zone
    data + data-center correlation, authenticated access only). Double-check the public
