@@ -1,7 +1,7 @@
 # Local dev stack only (Architecture.md Section 7: "real Kubernetes, not just Docker
 # Compose. Compose is for local dev"). Single-broker Kafka in KRaft mode (no Zookeeper),
 # matching the no-Docker local setup used earlier in development, plus Prometheus and
-# Grafana (Phase 4) with both dashboards provisioned from infra/grafana/dashboards/. .env
+# Grafana (Phase 4) with both dashboards provisioned from infra/grafana/provisioning/. .env
 # (see .env.example) supplies the EIA/PJM API keys; POSTGRES_DSN and
 # KAFKA_BOOTSTRAP_SERVERS are overridden below per service to use Compose service names
 # instead of .env's "localhost" defaults, which are meant for the non-Docker local setup.
@@ -154,8 +154,10 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: pjm_grid_watch
       GF_AUTH_ANONYMOUS_ENABLED: "false"
     volumes:
+      # One mount, deliberately: a second mount nested inside this one failed in CI with
+      # "read-only file system" (Docker can't create a mountpoint inside an already-mounted
+      # read-only directory) -- see infra/grafana/provisioning/dashboards/dashboards.yml.
       - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./infra/grafana/dashboards:/etc/grafana/provisioning/dashboards/files:ro
       - grafana_data:/var/lib/grafana
     depends_on:
       postgres:

@@ -1,7 +1,13 @@
-# Points Grafana at the JSON dashboard files in infra/grafana/dashboards/, loaded once at
-# container start. Editing a dashboard in the UI and wanting to keep it means exporting its
-# JSON back to this directory -- these files are the source of truth, not what's in a
+# Points Grafana at the JSON dashboard files sitting right alongside this one, loaded once
+# at container start. Editing a dashboard in the UI and wanting to keep it means exporting
+# its JSON back to this directory -- these files are the source of truth, not what's in a
 # running Grafana's database.
+#
+# Deliberately in the same directory as this file, not a nested subfolder: docker-compose.yml
+# mounts the whole infra/grafana/provisioning tree as one read-only bind mount, and Docker
+# cannot create a second mount point inside an already-mounted read-only directory (hit this
+# for real in CI, 2026-10-14 -- a separate ./infra/grafana/dashboards mount nested under this
+# one failed with "read-only file system" at container start).
 apiVersion: 1
 
 providers:
@@ -13,4 +19,4 @@ providers:
     updateIntervalSeconds: 30
     allowUiUpdates: true
     options:
-      path: /etc/grafana/provisioning/dashboards/files
+      path: /etc/grafana/provisioning/dashboards
