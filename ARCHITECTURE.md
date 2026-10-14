@@ -864,6 +864,12 @@ README.md             documents the public/private data split explicitly for any
    24/7. Reserve the Oracle Public IP, point a free subdomain at it, wire up Traefik/cert-manager for Let's Encrypt
    TLS (see "Public access: domain + TLS" above) before calling the public link done.
 6. **Stretch** (in priority order): CI/CD auto-deploy, Slack/email alerting, Terraform IaC.
+7. **Custom frontend** (decided 2026-10-14, not started, genuinely new scope beyond this
+   doc's original plan): a real web app on top of the data this pipeline already produces,
+   not just the two Grafana dashboards. Comes after the backend/deploy phases, since it
+   needs a live data source to build against. Not yet designed: framework, pages, and
+   whether it reads Postgres through a new API layer or talks to Grafana/Prometheus
+   directly are all open. Uses the `pbakaus/impeccable` design plugin when this starts.
 
 ## 10. Steps to complete before building starts
 
