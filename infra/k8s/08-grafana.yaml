@@ -28,11 +28,18 @@ data:
         type: postgres
         access: proxy
         url: postgres:5432
-        database: pjm_grid_watch
         user: pjm_grid_watch
         secureJsonData:
           password: pjm_grid_watch
         jsonData:
+          # database belongs here, not as a top-level field -- confirmed live (2026-10-14):
+          # a top-level `database` field was silently accepted by the datasource health check
+          # and by direct backend query API calls, but Grafana's frontend query editor
+          # (SqlDatasource.ts) checks jsonData.database specifically before sending any query
+          # at all, failing client-side with "no default database configured" and never
+          # issuing a request -- which is why every panel showed "No data" with nothing even
+          # appearing in the browser's network tab.
+          database: pjm_grid_watch
           sslmode: disable
           postgresVersion: 1600
           timescaledb: false
