@@ -877,9 +877,20 @@ README.md             documents the public/private data split explicitly for any
    real K8s Services. Passed on the first run, no debugging round needed, unlike Phase 3/4's
    Docker Compose verification. What this does not yet prove: the real Oracle VM itself
    (this ran against a throwaway `kind` cluster on a GitHub Actions runner, not the actual
-   2 OCPU/12GB target) and the Ingress/cert-manager/TLS path, which needs a real registered
+   1 OCPU/6GB target) and the Ingress/cert-manager/TLS path, which needs a real registered
    subdomain and a cluster with cert-manager installed, neither of which exist yet. See
    `infra/k8s/README.md` for the current state in full.
+
+   **The actual Oracle VM is paused, not abandoned (2026-10-14).** Always Free Ampere A1
+   capacity is genuinely out across all three Ashburn availability domains right now, a
+   real, widely-reported Oracle limitation, not a configuration mistake -- confirmed by
+   hitting "out of capacity" on AD-1, AD-2, and AD-3 in turn. Rather than block on Oracle's
+   capacity recovering, the project proceeds locally for now: CI's `kind`-based verification
+   already proves the manifests work, which is the thing that actually mattered before any
+   real deploy. The Local fallback section above (Section 5's "if the Oracle VM is
+   unavailable") already anticipated exactly this. Revisit the real VM (or a ~$5/month VPS
+   fallback, same section) once there's a reason to prioritize 24/7 public hosting over
+   continuing other work.
 6. **Stretch** (in priority order): CI/CD auto-deploy, Slack/email alerting, Terraform IaC.
 7. **Custom frontend** (decided 2026-10-14, not started, genuinely new scope beyond this
    doc's original plan): a real web app on top of the data this pipeline already produces,
