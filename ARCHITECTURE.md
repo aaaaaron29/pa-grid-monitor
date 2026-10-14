@@ -172,11 +172,16 @@ The project claims what it actually does. See Section 3.
   - **Decision: defer the correlation layer rather than build toward an undefined target.**
     Phases 4 and 5 proceed on EIA + PJM zone data only. Revisit after PJM's compliance
     filing actually defines an access mechanism, no earlier than 2026-11-08.
-- **Oracle's Always Free compute was quietly cut in July 2026**, now 2 OCPUs / 12GB RAM
-  total (ARM Ampere A1), down from the historical 4/24. This is still enough for a lean
-  single-node k3s running Kafka (KRaft mode, no Zookeeper), Postgres, the inference service,
-  and Prometheus/Grafana, but there's little headroom; keep images small and avoid running
-  anything redundant.
+- **Oracle's Always Free compute was cut again, confirmed live 2026-10-14 during actual
+  instance creation: 1 OCPU / 6GB RAM total** (ARM Ampere A1), not the 2/12 this doc
+  previously documented from July 2026, itself already down from the historical 4/24. The
+  instance-creation form offered no adjustable OCPU/memory fields beyond that cap. This is
+  genuinely tight for the full stack (Postgres, Kafka, four ingestion services, both
+  inference services, Prometheus, Grafana, all on 6GB) and will likely need real K8s
+  resource requests/limits tuned per pod before the Oracle deploy, not just "keep images
+  small" as previously assumed. Revisit `infra/k8s/`'s manifests for this before applying
+  them to the real VM; the kind-based CI verification doesn't catch this, since GitHub's
+  runners have far more memory available than the real target.
 - **Oracle reclaims idle Always Free instances** if CPU, network, and memory utilization are
   all under 20% for 95% of a rolling 7-day window. A pipeline that just polls an API every
   5 minutes and idles otherwise is at real risk of looking "idle" to Oracle's reclamation
