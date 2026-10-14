@@ -267,9 +267,13 @@ jobs:
           done
 
           # The Postgres datasource is what every panel in both dashboards actually queries;
-          # confirm Grafana can reach it, not just that it was registered.
+          # confirm Grafana can reach it, not just that it was registered. The health
+          # endpoint is UID-based, not ID-based (confirmed against Grafana's own API docs
+          # after getting a silent {} failure in CI, 2026-10-14, from using the ID-based
+          # path) -- infra/grafana/provisioning/datasources/datasources.yml sets this
+          # datasource's uid explicitly to "postgres", so no lookup is needed for it.
           for i in $(seq 1 20); do
-            health=$(curl -fs -u admin:pjm_grid_watch "http://localhost:3000/api/datasources/$ds_id/health" || echo '{}')
+            health=$(curl -fs -u admin:pjm_grid_watch "http://localhost:3000/api/datasources/uid/postgres/health" || echo '{}')
             echo "attempt $i: datasource health -> $health"
             if echo "$health" | grep -q '"status":"OK"'; then
               echo "Postgres datasource is healthy."
