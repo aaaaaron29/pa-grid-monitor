@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Grid Watch: The Data Center Question</title>
+<style>
+  :root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  img { max-width: 100%; }
+  [hidden] { display: none !important; }
+  /* Layout: long-form case study, narrow reading column, two full-width data sections (charts, tables) that break out of the column */
+  :root {
+    --surface-1: #fcfcfb;
+    --page: #f9f9f7;
+    --ink-1: #0b0b0b;
+    --ink-2: #52514e;
+    --ink-muted: #898781;
+    --grid: #e1e0d9;
+    --baseline: #c3c2b7;
+    --border: rgba(11,11,11,0.10);
+    --blue: #2a78d6;
+    --orange: #eb6834;
+    --aqua: #1baf7a;
+    --red: #e34948;
+    --good: #0ca30c;
+    --warning: #fab219;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --surface-1: #1a1a19;
+      --page: #0d0d0d;
+      --ink-1: #f0efec;
+      --ink-2: #c3c2b7;
+      --ink-muted: #898781;
+      --grid: #2c2c2a;
+      --baseline: #383835;
+      --border: rgba(255,255,255,0.10);
+      --blue: #3987e5;
+      --orange: #d95926;
+      --aqua: #199e70;
+      --red: #e66767;
+      --good: #0ca30c;
+      --warning: #fab219;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --surface-1: #1a1a19;
+    --page: #0d0d0d;
+    --ink-1: #f0efec;
+    --ink-2: #c3c2b7;
+    --ink-muted: #898781;
+    --grid: #2c2c2a;
+    --baseline: #383835;
+    --border: rgba(255,255,255,0.10);
+    --blue: #3987e5;
+    --orange: #d95926;
+    --aqua: #199e70;
+    --red: #e66767;
+    --good: #0ca30c;
+    --warning: #fab219;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--page);
+    color: var(--ink-1);
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  .col { max-width: 680px; margin: 0 auto; }
+  h1, h2, h3 { text-wrap: balance; font-weight: 700; letter-spacing: -0.01em; }
+  h1 { font-size: clamp(1.9rem, 4vw, 2.6rem); line-height: 1.1; margin: 0 0 0.5rem; }
+  h2 { font-size: 1.5rem; margin: 0 0 0.75rem; }
+  h3 { font-size: 1.05rem; margin: 0 0 0.4rem; }
+  p { margin: 0 0 1rem; color: var(--ink-2); }
+  a { color: var(--blue); text-decoration-color: color-mix(in srgb, var(--blue) 40%, transparent); }
+  a:hover { text-decoration-color: var(--blue); }
+  .eyebrow {
+    font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--ink-muted); margin: 0 0 0.6rem;
+  }
+  section { padding-block: 48px; border-top: 1px solid var(--border); }
+  section:first-of-type { border-top: none; }
+  .hero { padding-block: 56px 40px; }
+  .hero-stat {
+    display: inline-flex; align-items: baseline; gap: 0.4rem;
+    font-size: 0.95rem; color: var(--ink-2); margin-top: 1.25rem;
+  }
+  .hero-stat b { font-size: 1.3rem; color: var(--ink-1); font-variant-numeric: tabular-nums; }
+
+  /* Stat tiles */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .stat { background: var(--surface-1); padding: 16px; min-width: 0; }
+  .stat-label { font-size: 0.75rem; color: var(--ink-muted); margin-bottom: 6px; }
+  .stat-value { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stat-sub { font-size: 0.78rem; color: var(--ink-muted); margin-top: 2px; }
+  @media (max-width: 640px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+
+  /* Timeline */
+  .timeline { display: flex; flex-direction: column; gap: 0; }
+  .tl-item { display: grid; grid-template-columns: 110px 1fr; gap: 20px; padding-block: 18px; border-top: 1px solid var(--border); min-width: 0; }
+  .tl-item:first-child { border-top: none; }
+  .tl-date { font-size: 0.82rem; font-weight: 700; color: var(--ink-muted); padding-top: 2px; }
+  .tl-claim { font-weight: 600; margin-bottom: 4px; }
+  .tl-source { font-size: 0.85rem; }
+  @media (max-width: 560px) { .tl-item { grid-template-columns: 1fr; gap: 4px; } }
+
+  /* Callout */
+  .callout {
+    border: 1px solid var(--border); border-left: 3px solid var(--orange);
+    background: var(--surface-1); border-radius: 8px; padding: 20px 22px;
+  }
+  .callout h3 { color: var(--orange); }
+
+  /* Chart card */
+  .chart-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 20px; min-width: 0; }
+  .chart-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 4px; flex-wrap: wrap; }
+  .chart-title { font-weight: 700; font-size: 0.95rem; }
+  .chart-meta { font-size: 0.78rem; color: var(--ink-muted); }
+  .legend { display: flex; gap: 16px; font-size: 0.78rem; color: var(--ink-2); margin-top: 10px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-swatch { width: 14px; height: 2px; border-radius: 2px; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+  svg.chart { width: 100%; height: auto; display: block; overflow: visible; }
+  .chart-grid-line { stroke: var(--grid); stroke-width: 1; }
+  .chart-axis-text { fill: var(--ink-muted); font-size: 10px; font-family: system-ui, sans-serif; }
+  .tooltip {
+    position: absolute; pointer-events: none; background: var(--ink-1); color: var(--page);
+    font-size: 0.78rem; padding: 6px 9px; border-radius: 6px; white-space: nowrap;
+    transform: translate(-50%, -115%); opacity: 0; transition: opacity 0.1s; z-index: 5;
+    font-variant-numeric: tabular-nums;
+  }
+  .chart-wrap { position: relative; }
+  .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 760px) { .charts-grid { grid-template-columns: 1fr; } }
+
+  /* Table */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; min-width: 480px; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-muted); font-weight: 600; background: var(--surface-1); }
+  td { font-variant-numeric: tabular-nums; }
+  tr:last-child td { border-bottom: none; }
+  .pill { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 99px; font-size: 0.76rem; font-weight: 600; }
+  .pill-flag { background: color-mix(in srgb, var(--red) 15%, transparent); color: var(--red); }
+  .pill-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  /* Zone grid */
+  .zones { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .zone { background: var(--surface-1); padding: 14px; min-width: 0; }
+  .zone.focus { background: color-mix(in srgb, var(--orange) 8%, var(--surface-1)); }
+  .zone-name { font-weight: 700; font-size: 0.9rem; }
+  .zone-tag { font-size: 0.68rem; color: var(--orange); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+  .zone-row { display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--ink-2); margin-top: 6px; }
+  .zone-row b { color: var(--ink-1); font-variant-numeric: tabular-nums; }
+  @media (max-width: 760px) { .zones { grid-template-columns: repeat(2, 1fr); } }
+
+  /* Sources */
+  .sources { display: flex; flex-direction: column; gap: 2px; }
+  .source { display: flex; gap: 10px; padding: 10px 0; border-top: 1px solid var(--border); font-size: 0.88rem; }
+  .source:first-child { border-top: none; }
+  .source-tag { flex: 0 0 auto; font-size: 0.68rem; font-weight: 700; color: var(--ink-muted); text-transform: uppercase; padding-top: 3px; width: 86px; }
+
+  .status-note { display: flex; align-items: flex-start; gap: 10px; background: color-mix(in srgb, var(--warning) 12%, var(--surface-1)); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; font-size: 0.86rem; color: var(--ink-2); }
+  .status-dot { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; background: var(--warning); margin-top: 6px; }
+
+  footer { padding-block: 32px 48px; font-size: 0.8rem; color: var(--ink-muted); }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <section class="hero col">
+    <div class="eyebrow">Grid Watch: Working Draft</div>
+    <h1>Are Pennsylvania's utilities delivering on their data center promises?</h1>
+    <p style="font-size:1.05rem; color:var(--ink-1);">PPL Electric has told regulators and investors, repeatedly and on the record, how much new power demand is coming. PJM's own grid data is the only honest way to check if that's actually happening.</p>
+    <div class="hero-stat"><b>31.8 GW</b> PPL's own pipeline figure, Q2 2026</div>
+    <div class="hero-stat"><b>204,532</b> real hourly readings behind this page</div>
+  </section>
+
+  <section class="col">
+    <div class="eyebrow">The case study</div>
+    <h2>Why this exists</h2>
+    <p>This started as a real-time anomaly detector on the PJM grid: an isolation forest scoring forecast residuals across five Pennsylvania utility zones, built and verified end to end (ingestion, Kafka streaming, Kubernetes, CI). That pipeline is live and the numbers below are real output from it, not mockups.</p>
+    <p>What it's turning into is more specific. PJM's wholesale power market is short on supply, and PJM's own capacity auction is pointing at one cause: AI data center demand. Pennsylvania utilities have made public, dated, numbered claims about how much of that demand is coming to their territory. Those claims are checkable against real metered data. This page is the first pass at doing that.</p>
+  </section>
+
+  <section class="col">
+    <div class="eyebrow">The claims, in their own words and dates</div>
+    <h2>PPL's pipeline, quarter by quarter</h2>
+    <p>PPL Electric covers roughly 29 counties across central and eastern Pennsylvania, stretching from Lancaster through the Lehigh Valley to Scranton/Wilkes-Barre. It's the one PA utility Pennsylvania's own Public Utility Commission names as facing significant data-center-driven demand growth; the other four zones this project tracks are explicitly not.</p>
+    <div class="timeline">
+      <div class="tl-item">
+        <div class="tl-date">Q1 2024</div>
+        <div><div class="tl-claim">~3 GW in signed data center agreements</div><div class="tl-source">Earnings coverage, cited in <a href="https://www.datacenterdynamics.com/en/news/us-utility-ppl-sees-data-center-pipeline-swell-by-23-percent-to-252gw/" target="_blank" rel="noopener">Data Center Dynamics</a></div></div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-date">Aug 2025</div>
+        <div><div class="tl-claim">Data center load projected: 800MW in 2026 &rarr; 14.4GW by 2034</div><div class="tl-source"><a href="https://penncapital-star.com/uncategorized/data-centers-drive-higher-forecasts-for-electric-demand-in-pa-sparking-climate-worries/" target="_blank" rel="noopener">Pennsylvania Capital-Star</a>. The 800MW-in-2026 figure is checkable right now against real PJM load data.</div></div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-date">Q4 2025</div>
+        <div><div class="tl-claim">25.2 GW in signed agreements</div><div class="tl-source"><a href="https://www.datacenterdynamics.com/en/news/us-utility-ppl-sees-data-center-pipeline-swell-by-23-percent-to-252gw/" target="_blank" rel="noopener">Data Center Dynamics</a></div></div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-date">Jan 2026</div>
+        <div><div class="tl-claim">PJM's own forecast for PPL's territory summer peak: 7,300 MW &rarr; 12,000 MW</div><div class="tl-source">PJM's 2026 Load Forecast Report. This one is PJM's independent number, not PPL's own PR.</div></div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-date">Q2 2026</div>
+        <div><div class="tl-claim">31.8 GW pipeline &middot; 11 GW signed &middot; 6.5 GW under construction</div><div class="tl-source"><a href="https://www.investing.com/news/company-news/ppl-q2-2026-slides-data-center-growth-drives-23b-capex-plan-93CH-4847201" target="_blank" rel="noopener">PPL Q2 2026 investor materials</a>. Joint venture with Blackstone (Invitium Energy) has secured sites for 8&ndash;14 GW of new generation.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="col">
+    <div class="eyebrow">The other side</div>
+    <h2>Why these numbers might not mean what they say</h2>
+    <div class="callout">
+      <h3>The duplicate-request problem</h3>
+      <p style="margin-bottom:0;">A July 2025 <a href="https://eta-publications.lbl.gov/sites/default/files/2025-10/lbnl_lllreview_sept_update_2025_1.pdf" target="_blank" rel="noopener">London Economics analysis</a> argues pipeline figures like these are structurally inflated: developers routinely file interconnection requests at multiple candidate sites simultaneously while deciding where to actually build, so the same project can show up in several utilities' "pipeline" totals at once. The same report flags equipment and chip supply bottlenecks as a separate reason real load growth could come in well below what's announced.</p>
+    </div>
+    <p style="margin-top:20px;">This is exactly why an accountability check is worth building, not a reason to skip it. There are two competing public stories: explosive, utility-reported growth, and analyst skepticism that it's overstated. Real metered demand is the only neutral referee between them.</p>
+  </section>
+
+  <section class="wrap">
+    <div class="eyebrow col">What this project can already measure</div>
+    <h2 class="col">The live pipeline, right now</h2>
+    <p class="col">This part is real and running, not projected. Every number below came out of Postgres minutes before this page was built.</p>
+
+    <div class="stats" style="margin-top: 8px;">
+      <div class="stat">
+        <div class="stat-label">Current PJM demand</div>
+        <div class="stat-value" id="stat-current">&mdash;</div>
+        <div class="stat-sub">most recent EIA-930 reading</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">24h peak demand</div>
+        <div class="stat-value" id="stat-peak">&mdash;</div>
+        <div class="stat-sub">rolling window</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Anomalies flagged</div>
+        <div class="stat-value" id="stat-anomalies">2</div>
+        <div class="stat-sub">last 7 days</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">History depth</div>
+        <div class="stat-value">204,532</div>
+        <div class="stat-sub">readings since Dec 2018</div>
+      </div>
+    </div>
+
+    <div class="charts-grid" style="margin-top: 20px;">
+      <div class="chart-card">
+        <div class="chart-head">
+          <div>
+            <div class="chart-title">PJM-wide demand, 7 days</div>
+            <div class="chart-meta">EIA-930, hourly, actual vs. flagged points</div>
+          </div>
+        </div>
+        <div class="chart-wrap">
+          <svg class="chart" id="chart-demand" viewBox="0 0 600 220" preserveAspectRatio="none"></svg>
+          <div class="tooltip" id="tooltip-demand"></div>
+        </div>
+        <div class="legend">
+          <div class="legend-item"><span class="legend-swatch" style="background:var(--blue)"></span>Actual demand (MW)</div>
+          <div class="legend-item"><span class="legend-dot" style="background:var(--red); width:8px; height:8px; border-radius:50%; display:inline-block;"></span>Forest-flagged</div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-head">
+          <div>
+            <div class="chart-title">PPL zone LMP, 7 days</div>
+            <div class="chart-meta">PJM Data Miner 2, hourly avg, $/MWh</div>
+          </div>
+        </div>
+        <div class="chart-wrap">
+          <svg class="chart" id="chart-ppl" viewBox="0 0 600 220" preserveAspectRatio="none"></svg>
+          <div class="tooltip" id="tooltip-ppl"></div>
+        </div>
+        <div class="legend">
+          <div class="legend-item"><span class="legend-swatch" style="background:var(--orange)"></span>PPL average price</div>
+        </div>
+      </div>
+    </div>
+
+    <h3 class="col" style="margin-top: 36px;">Flagged anomaly log</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Time</th><th>Residual (MW)</th><th>Forest score</th><th>Detector</th></tr></thead>
+        <tbody>
+          <tr><td>2026-10-14 03:00 EDT</td><td>&minus;9,877</td><td>0.116</td><td><span class="pill pill-flag"><span class="pill-dot"></span>Forest</span></td></tr>
+          <tr><td>2026-10-12 19:00 EDT</td><td>+8,995</td><td>0.117</td><td><span class="pill pill-flag"><span class="pill-dot"></span>Forest</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 class="col" style="margin-top: 36px;">All five zones, 7-day LMP range</h3>
+    <div class="zones">
+      <div class="zone focus">
+        <div class="zone-tag">Focus zone</div>
+        <div class="zone-name">PPL</div>
+        <div class="zone-row">avg <b>$28.39</b></div>
+        <div class="zone-row">max <b>$1,049.54</b></div>
+        <div class="zone-row">min <b>&minus;$107.63</b></div>
+      </div>
+      <div class="zone">
+        <div class="zone-name">PECO</div>
+        <div class="zone-row">avg <b>$30.39</b></div>
+        <div class="zone-row">max <b>$1,050.95</b></div>
+        <div class="zone-row">min <b>&minus;$49.37</b></div>
+      </div>
+      <div class="zone">
+        <div class="zone-name">METED</div>
+        <div class="zone-row">avg <b>$48.18</b></div>
+        <div class="zone-row">max <b>$1,152.34</b></div>
+        <div class="zone-row">min <b>$1.14</b></div>
+      </div>
+      <div class="zone">
+        <div class="zone-name">PENELEC</div>
+        <div class="zone-row">avg <b>$46.03</b></div>
+        <div class="zone-row">max <b>$1,100.00</b></div>
+        <div class="zone-row">min <b>&minus;$5.39</b></div>
+      </div>
+      <div class="zone">
+        <div class="zone-name">DUQ</div>
+        <div class="zone-row">avg <b>$56.06</b></div>
+        <div class="zone-row">max <b>$1,124.99</b></div>
+        <div class="zone-row">min <b>$11.31</b></div>
+      </div>
+    </div>
+    <p class="col" style="margin-top: 14px; font-size: 0.86rem;">Worth sitting with: PPL isn't the outlier in this price table. It's priced similarly to PECO, and both sit below METED, PENELEC, and DUQ. Price is driven by a lot more than local demand growth (fuel costs, congestion, weather), which is exactly why price alone won't settle the data-center question. That needs actual zone-level <em>load</em> data, not price. See below.</p>
+  </section>
+
+  <section class="col">
+    <div class="eyebrow">What's missing to actually answer the question</div>
+    <h2>The gap between this page and a real accountability tracker</h2>
+    <div class="status-note">
+      <div class="status-dot"></div>
+      <div>The one piece that would make this rigorous is PJM's <code>hrl_load_metered</code> feed, real zone-level metered demand in MW, and it isn't ingested yet. It uses the same PJM Data Miner 2 API and subscription key already in use for LMP data, so it's a scoped addition, not a new integration. Until it exists, this page shows real anomaly detection on PJM-wide demand and real PPL price data, but not yet the direct "did PPL's load grow the way they said it would" comparison.</div>
+    </div>
+  </section>
+
+  <section class="col">
+    <div class="eyebrow">Method and honest limits</div>
+    <h2>What this does and doesn't prove</h2>
+    <p><b style="color:var(--ink-1)">How the detection works:</b> an isolation forest scores the residual between actual demand and a seasonal-naive forecast (same hour, same day of week, prior cycle) plus rolling context, fit only on data through mid-2025 and evaluated on a later window it never trained on. There are no real anomaly labels for this data; detector quality is measured by injecting synthetic anomalies into held-out data and checking recall at a fixed false-positive budget. That's a check on the method, not a guarantee about any specific real event.</p>
+    <p><b style="color:var(--ink-1)">Why this is a PPL story, not a five-zone story:</b> Pennsylvania's PUC explicitly says the other four zones tracked here aren't expecting significant data-center impact. Treating this as a statewide comparison would overstate what the data supports.</p>
+    <p><b style="color:var(--ink-1)">Why zone-level data can't prove any single project's impact:</b> PPL's territory spans dozens of counties. Even real load-growth data would show "PPL zone-wide," not "this specific facility." Attributing a demand change to one named data center needs substation-level data that isn't public.</p>
+    <p><b style="color:var(--ink-1)">Correlation, never causation:</b> PA demand can move for reasons that have nothing to do with data centers: weather, broader electrification, EV adoption, ordinary industrial growth. Nothing here is designed or intended to prove a single cause.</p>
+  </section>
+
+  <section class="col">
+    <div class="eyebrow">Sources</div>
+    <h2>Every claim above, linked</h2>
+    <div class="sources">
+      <div class="source"><div class="source-tag">Primary</div><div>PA PUC, <a href="https://www.puc.pa.gov/media/3586/final-draft-2025-epo-2024-2029-8-2025.pdf" target="_blank" rel="noopener">Electric Power Outlook 2024&ndash;2029</a>: the regulatory finding that PPL alone faces significant data-center demand growth among PA's utilities.</div></div>
+      <div class="source"><div class="source-tag">Primary</div><div>PJM, <a href="https://www.pjm.com/-/media/DotCom/library/reports-notices/load-forecast/2026-load-report.pdf" target="_blank" rel="noopener">2026 Load Forecast Report</a>: PJM's own independent peak-demand forecast revisions.</div></div>
+      <div class="source"><div class="source-tag">Trade press</div><div><a href="https://www.datacenterdynamics.com/en/news/us-utility-ppl-sees-data-center-pipeline-swell-by-23-percent-to-252gw/" target="_blank" rel="noopener">Data Center Dynamics</a>, <a href="https://www.utilitydive.com/news/ppl-data-center-pipeline-pjm-blackstone-earnings/819804/" target="_blank" rel="noopener">Utility Dive</a> on PPL's pipeline growth.</div></div>
+      <div class="source"><div class="source-tag">Local news</div><div><a href="https://whyy.org/articles/peco-data-centers-agreement/" target="_blank" rel="noopener">WHYY</a> on PECO's Transmission Security Agreements; <a href="https://penncapital-star.com/uncategorized/data-centers-drive-higher-forecasts-for-electric-demand-in-pa-sparking-climate-worries/" target="_blank" rel="noopener">Pennsylvania Capital-Star</a> on the 2026&ndash;2034 load trajectory.</div></div>
+      <div class="source"><div class="source-tag">Market data</div><div><a href="https://www.utilitydive.com/news/pjm-interconnection-capacity-auction-data-center/808264/" target="_blank" rel="noopener">Utility Dive</a>, <a href="https://ieefa.org/resources/projected-data-center-growth-spurs-pjm-capacity-prices-factor-10" target="_blank" rel="noopener">IEEFA</a> on the July 2026 capacity auction shortfall and the $29.4B cost figure.</div></div>
+      <div class="source"><div class="source-tag">Skeptic</div><div><a href="https://eta-publications.lbl.gov/sites/default/files/2025-10/lbnl_lllreview_sept_update_2025_1.pdf" target="_blank" rel="noopener">Lawrence Berkeley National Lab, Large Load Literature Review</a>: the duplicate-interconnection-request and overestimation critique.</div></div>
+    </div>
+  </section>
+
+  <footer class="col">
+    Working draft. The charts and numbers above are a real snapshot pulled from the live pipeline on 2026-10-14, not a live feed, so they won't update on this page. Everything above the "what's missing" section is real; the promises-vs-reality comparison itself is the next thing to build, not a finished product.
+  </footer>
+
+</div>
+
+<script>
+(function() {
+  var DEMAND = [{"t": "2026-10-07 18:00:00-04", "v": 94274.0, "flagged": false}, {"t": "2026-10-07 19:00:00-04", "v": 95021.0, "flagged": false}, {"t": "2026-10-07 20:00:00-04", "v": 95755.0, "flagged": false}, {"t": "2026-10-07 21:00:00-04", "v": 94269.0, "flagged": false}, {"t": "2026-10-07 22:00:00-04", "v": 90712.0, "flagged": false}, {"t": "2026-10-07 23:00:00-04", "v": 86016.0, "flagged": false}, {"t": "2026-10-08 00:00:00-04", "v": 81333.0, "flagged": false}, {"t": "2026-10-08 01:00:00-04", "v": 78089.0, "flagged": false}, {"t": "2026-10-08 02:00:00-04", "v": 76731.0, "flagged": false}, {"t": "2026-10-08 03:00:00-04", "v": 75203.0, "flagged": false}, {"t": "2026-10-08 04:00:00-04", "v": 74578.0, "flagged": false}, {"t": "2026-10-08 05:00:00-04", "v": 75034.0, "flagged": false}, {"t": "2026-10-08 06:00:00-04", "v": 76939.0, "flagged": false}, {"t": "2026-10-08 07:00:00-04", "v": 82316.0, "flagged": false}, {"t": "2026-10-08 08:00:00-04", "v": 86371.0, "flagged": false}, {"t": "2026-10-08 09:00:00-04", "v": 86471.0, "flagged": false}, {"t": "2026-10-08 10:00:00-04", "v": 87014.0, "flagged": false}, {"t": "2026-10-08 11:00:00-04", "v": 88057.0, "flagged": false}, {"t": "2026-10-08 12:00:00-04", "v": 88131.0, "flagged": false}, {"t": "2026-10-08 13:00:00-04", "v": 89023.0, "flagged": false}, {"t": "2026-10-08 14:00:00-04", "v": 90683.0, "flagged": false}, {"t": "2026-10-08 15:00:00-04", "v": 92038.0, "flagged": false}, {"t": "2026-10-08 16:00:00-04", "v": 93442.0, "flagged": false}, {"t": "2026-10-08 17:00:00-04", "v": 94941.0, "flagged": false}, {"t": "2026-10-08 18:00:00-04", "v": 96389.0, "flagged": false}, {"t": "2026-10-08 19:00:00-04", "v": 96294.0, "flagged": false}, {"t": "2026-10-08 20:00:00-04", "v": 96325.0, "flagged": false}, {"t": "2026-10-08 21:00:00-04", "v": 93965.0, "flagged": false}, {"t": "2026-10-08 22:00:00-04", "v": 90168.0, "flagged": false}, {"t": "2026-10-08 23:00:00-04", "v": 85525.0, "flagged": false}, {"t": "2026-10-09 00:00:00-04", "v": 81028.0, "flagged": false}, {"t": "2026-10-09 01:00:00-04", "v": 77775.0, "flagged": false}, {"t": "2026-10-09 02:00:00-04", "v": 76010.0, "flagged": false}, {"t": "2026-10-09 03:00:00-04", "v": 75601.0, "flagged": false}, {"t": "2026-10-09 04:00:00-04", "v": 74619.0, "flagged": false}, {"t": "2026-10-09 05:00:00-04", "v": 75143.0, "flagged": false}, {"t": "2026-10-09 06:00:00-04", "v": 76194.0, "flagged": false}, {"t": "2026-10-09 07:00:00-04", "v": 81631.0, "flagged": false}, {"t": "2026-10-09 08:00:00-04", "v": 85726.0, "flagged": false}, {"t": "2026-10-09 09:00:00-04", "v": 86701.0, "flagged": false}, {"t": "2026-10-09 10:00:00-04", "v": 87536.0, "flagged": false}, {"t": "2026-10-09 11:00:00-04", "v": 88047.0, "flagged": false}, {"t": "2026-10-09 12:00:00-04", "v": 88527.0, "flagged": false}, {"t": "2026-10-09 13:00:00-04", "v": 88793.0, "flagged": false}, {"t": "2026-10-09 14:00:00-04", "v": 89652.0, "flagged": false}, {"t": "2026-10-09 15:00:00-04", "v": 90284.0, "flagged": false}, {"t": "2026-10-09 16:00:00-04", "v": 90876.0, "flagged": false}, {"t": "2026-10-09 17:00:00-04", "v": 91581.0, "flagged": false}, {"t": "2026-10-09 18:00:00-04", "v": 92323.0, "flagged": false}, {"t": "2026-10-09 19:00:00-04", "v": 92199.0, "flagged": false}, {"t": "2026-10-09 20:00:00-04", "v": 92331.0, "flagged": false}, {"t": "2026-10-09 21:00:00-04", "v": 90561.0, "flagged": false}, {"t": "2026-10-09 22:00:00-04", "v": 87622.0, "flagged": false}, {"t": "2026-10-09 23:00:00-04", "v": 84219.0, "flagged": false}, {"t": "2026-10-10 00:00:00-04", "v": 80423.0, "flagged": false}, {"t": "2026-10-10 01:00:00-04", "v": 77651.0, "flagged": false}, {"t": "2026-10-10 02:00:00-04", "v": 76567.0, "flagged": false}, {"t": "2026-10-10 03:00:00-04", "v": 75642.0, "flagged": false}, {"t": "2026-10-10 04:00:00-04", "v": 74578.0, "flagged": false}, {"t": "2026-10-10 05:00:00-04", "v": 74049.0, "flagged": false}, {"t": "2026-10-10 06:00:00-04", "v": 74883.0, "flagged": false}, {"t": "2026-10-10 07:00:00-04", "v": 76542.0, "flagged": false}, {"t": "2026-10-10 08:00:00-04", "v": 78303.0, "flagged": false}, {"t": "2026-10-10 09:00:00-04", "v": 80185.0, "flagged": false}, {"t": "2026-10-10 10:00:00-04", "v": 81256.0, "flagged": false}, {"t": "2026-10-10 11:00:00-04", "v": 81885.0, "flagged": false}, {"t": "2026-10-10 12:00:00-04", "v": 81926.0, "flagged": false}, {"t": "2026-10-10 13:00:00-04", "v": 82274.0, "flagged": false}, {"t": "2026-10-10 14:00:00-04", "v": 81872.0, "flagged": false}, {"t": "2026-10-10 15:00:00-04", "v": 82133.0, "flagged": false}, {"t": "2026-10-10 16:00:00-04", "v": 82790.0, "flagged": false}, {"t": "2026-10-10 17:00:00-04", "v": 84319.0, "flagged": false}, {"t": "2026-10-10 18:00:00-04", "v": 85267.0, "flagged": false}, {"t": "2026-10-10 19:00:00-04", "v": 86530.0, "flagged": false}, {"t": "2026-10-10 20:00:00-04", "v": 87558.0, "flagged": false}, {"t": "2026-10-10 21:00:00-04", "v": 86487.0, "flagged": false}, {"t": "2026-10-10 22:00:00-04", "v": 84317.0, "flagged": false}, {"t": "2026-10-10 23:00:00-04", "v": 81435.0, "flagged": false}, {"t": "2026-10-11 00:00:00-04", "v": 78922.0, "flagged": false}, {"t": "2026-10-11 01:00:00-04", "v": 77182.0, "flagged": false}, {"t": "2026-10-11 02:00:00-04", "v": 75489.0, "flagged": false}, {"t": "2026-10-11 03:00:00-04", "v": 74145.0, "flagged": false}, {"t": "2026-10-11 04:00:00-04", "v": 73165.0, "flagged": false}, {"t": "2026-10-11 05:00:00-04", "v": 72760.0, "flagged": false}, {"t": "2026-10-11 06:00:00-04", "v": 73346.0, "flagged": false}, {"t": "2026-10-11 07:00:00-04", "v": 75066.0, "flagged": false}, {"t": "2026-10-11 08:00:00-04", "v": 77125.0, "flagged": false}, {"t": "2026-10-11 09:00:00-04", "v": 78694.0, "flagged": false}, {"t": "2026-10-11 10:00:00-04", "v": 81220.0, "flagged": false}, {"t": "2026-10-11 11:00:00-04", "v": 83175.0, "flagged": false}, {"t": "2026-10-11 12:00:00-04", "v": 85076.0, "flagged": false}, {"t": "2026-10-11 13:00:00-04", "v": 86396.0, "flagged": false}, {"t": "2026-10-11 14:00:00-04", "v": 86850.0, "flagged": false}, {"t": "2026-10-11 15:00:00-04", "v": 86978.0, "flagged": false}, {"t": "2026-10-11 16:00:00-04", "v": 87490.0, "flagged": false}, {"t": "2026-10-11 17:00:00-04", "v": 88596.0, "flagged": false}, {"t": "2026-10-11 18:00:00-04", "v": 90246.0, "flagged": false}, {"t": "2026-10-11 19:00:00-04", "v": 91171.0, "flagged": false}, {"t": "2026-10-11 20:00:00-04", "v": 91870.0, "flagged": false}, {"t": "2026-10-11 21:00:00-04", "v": 90299.0, "flagged": false}, {"t": "2026-10-11 22:00:00-04", "v": 87284.0, "flagged": false}, {"t": "2026-10-11 23:00:00-04", "v": 83792.0, "flagged": false}, {"t": "2026-10-12 00:00:00-04", "v": 80556.0, "flagged": false}, {"t": "2026-10-12 01:00:00-04", "v": 78430.0, "flagged": false}, {"t": "2026-10-12 02:00:00-04", "v": 77062.0, "flagged": false}, {"t": "2026-10-12 03:00:00-04", "v": 75686.0, "flagged": false}, {"t": "2026-10-12 04:00:00-04", "v": 75048.0, "flagged": false}, {"t": "2026-10-12 05:00:00-04", "v": 75748.0, "flagged": false}, {"t": "2026-10-12 06:00:00-04", "v": 78383.0, "flagged": false}, {"t": "2026-10-12 07:00:00-04", "v": 82700.0, "flagged": false}, {"t": "2026-10-12 08:00:00-04", "v": 85956.0, "flagged": false}, {"t": "2026-10-12 09:00:00-04", "v": 87837.0, "flagged": false}, {"t": "2026-10-12 10:00:00-04", "v": 89378.0, "flagged": false}, {"t": "2026-10-12 11:00:00-04", "v": 90242.0, "flagged": false}, {"t": "2026-10-12 12:00:00-04", "v": 91125.0, "flagged": false}, {"t": "2026-10-12 13:00:00-04", "v": 91934.0, "flagged": false}, {"t": "2026-10-12 14:00:00-04", "v": 93498.0, "flagged": false}, {"t": "2026-10-12 15:00:00-04", "v": 95489.0, "flagged": false}, {"t": "2026-10-12 16:00:00-04", "v": 98012.0, "flagged": false}, {"t": "2026-10-12 17:00:00-04", "v": 100253.0, "flagged": false}, {"t": "2026-10-12 18:00:00-04", "v": 102698.0, "flagged": false}, {"t": "2026-10-12 19:00:00-04", "v": 102852.0, "flagged": true}, {"t": "2026-10-12 20:00:00-04", "v": 102735.0, "flagged": false}, {"t": "2026-10-12 21:00:00-04", "v": 100335.0, "flagged": false}, {"t": "2026-10-12 22:00:00-04", "v": 96164.0, "flagged": false}, {"t": "2026-10-12 23:00:00-04", "v": 90825.0, "flagged": false}, {"t": "2026-10-13 00:00:00-04", "v": 86263.0, "flagged": false}, {"t": "2026-10-13 01:00:00-04", "v": 83930.0, "flagged": false}, {"t": "2026-10-13 02:00:00-04", "v": 81587.0, "flagged": false}, {"t": "2026-10-13 03:00:00-04", "v": 79531.0, "flagged": false}, {"t": "2026-10-13 04:00:00-04", "v": 78565.0, "flagged": false}, {"t": "2026-10-13 05:00:00-04", "v": 79050.0, "flagged": false}, {"t": "2026-10-13 06:00:00-04", "v": 82063.0, "flagged": false}, {"t": "2026-10-13 07:00:00-04", "v": 86796.0, "flagged": false}, {"t": "2026-10-13 08:00:00-04", "v": 90893.0, "flagged": false}, {"t": "2026-10-13 09:00:00-04", "v": 91751.0, "flagged": false}, {"t": "2026-10-13 10:00:00-04", "v": 92079.0, "flagged": false}, {"t": "2026-10-13 11:00:00-04", "v": 92881.0, "flagged": false}, {"t": "2026-10-13 12:00:00-04", "v": 94026.0, "flagged": false}, {"t": "2026-10-13 13:00:00-04", "v": 96368.0, "flagged": false}, {"t": "2026-10-13 14:00:00-04", "v": 100015.0, "flagged": false}, {"t": "2026-10-13 15:00:00-04", "v": 102745.0, "flagged": false}, {"t": "2026-10-13 16:00:00-04", "v": 105148.0, "flagged": false}, {"t": "2026-10-13 17:00:00-04", "v": 107281.0, "flagged": false}, {"t": "2026-10-13 18:00:00-04", "v": 108122.0, "flagged": false}, {"t": "2026-10-13 19:00:00-04", "v": 107394.0, "flagged": false}, {"t": "2026-10-13 20:00:00-04", "v": 106596.0, "flagged": false}, {"t": "2026-10-13 21:00:00-04", "v": 103785.0, "flagged": false}, {"t": "2026-10-13 22:00:00-04", "v": 100465.0, "flagged": false}, {"t": "2026-10-13 23:00:00-04", "v": 95242.0, "flagged": false}, {"t": "2026-10-14 00:00:00-04", "v": 90147.0, "flagged": false}, {"t": "2026-10-14 01:00:00-04", "v": 86863.0, "flagged": false}, {"t": "2026-10-14 02:00:00-04", "v": 84346.0, "flagged": false}, {"t": "2026-10-14 03:00:00-04", "v": 81981.0, "flagged": true}, {"t": "2026-10-14 04:00:00-04", "v": 80779.0, "flagged": false}, {"t": "2026-10-14 05:00:00-04", "v": 81006.0, "flagged": false}, {"t": "2026-10-14 06:00:00-04", "v": 84203.0, "flagged": false}, {"t": "2026-10-14 07:00:00-04", "v": 88637.0, "flagged": false}, {"t": "2026-10-14 08:00:00-04", "v": 92109.0, "flagged": false}, {"t": "2026-10-14 09:00:00-04", "v": 93250.0, "flagged": false}, {"t": "2026-10-14 10:00:00-04", "v": 95317.0, "flagged": false}, {"t": "2026-10-14 11:00:00-04", "v": 97596.0, "flagged": false}, {"t": "2026-10-14 12:00:00-04", "v": 100289.0, "flagged": false}, {"t": "2026-10-14 13:00:00-04", "v": 103063.0, "flagged": false}, {"t": "2026-10-14 14:00:00-04", "v": 105045.0, "flagged": false}, {"t": "2026-10-14 15:00:00-04", "v": 106122.0, "flagged": false}, {"t": "2026-10-14 16:00:00-04", "v": 106879.0, "flagged": false}];
+  var PPL = [{"t": "2026-10-07 18:00:00-04", "v": 329.59}, {"t": "2026-10-07 19:00:00-04", "v": 201.69}, {"t": "2026-10-07 20:00:00-04", "v": 30.76}, {"t": "2026-10-07 21:00:00-04", "v": 22.82}, {"t": "2026-10-07 22:00:00-04", "v": 20.59}, {"t": "2026-10-07 23:00:00-04", "v": 11.2}, {"t": "2026-10-08 00:00:00-04", "v": 38.07}, {"t": "2026-10-08 01:00:00-04", "v": 17.14}, {"t": "2026-10-08 02:00:00-04", "v": 17.62}, {"t": "2026-10-08 03:00:00-04", "v": 16.35}, {"t": "2026-10-08 04:00:00-04", "v": 16.94}, {"t": "2026-10-08 05:00:00-04", "v": 18.65}, {"t": "2026-10-08 06:00:00-04", "v": 26.76}, {"t": "2026-10-08 07:00:00-04", "v": 48.41}, {"t": "2026-10-08 08:00:00-04", "v": 35.44}, {"t": "2026-10-08 09:00:00-04", "v": 24.22}, {"t": "2026-10-08 10:00:00-04", "v": 28.89}, {"t": "2026-10-08 11:00:00-04", "v": 24.46}, {"t": "2026-10-08 12:00:00-04", "v": 25.95}, {"t": "2026-10-08 13:00:00-04", "v": 29.22}, {"t": "2026-10-08 14:00:00-04", "v": 29.32}, {"t": "2026-10-08 15:00:00-04", "v": 26.88}, {"t": "2026-10-08 16:00:00-04", "v": 17.34}, {"t": "2026-10-08 17:00:00-04", "v": 7.65}, {"t": "2026-10-08 18:00:00-04", "v": 32.54}, {"t": "2026-10-08 19:00:00-04", "v": -2.32}, {"t": "2026-10-08 20:00:00-04", "v": 49.63}, {"t": "2026-10-08 21:00:00-04", "v": 18.83}, {"t": "2026-10-08 22:00:00-04", "v": 13.22}, {"t": "2026-10-08 23:00:00-04", "v": 20.43}, {"t": "2026-10-09 00:00:00-04", "v": 28.3}, {"t": "2026-10-09 01:00:00-04", "v": 32.86}, {"t": "2026-10-09 02:00:00-04", "v": 24.29}, {"t": "2026-10-09 03:00:00-04", "v": 22.77}, {"t": "2026-10-09 04:00:00-04", "v": 22.14}, {"t": "2026-10-09 05:00:00-04", "v": 25.33}, {"t": "2026-10-09 06:00:00-04", "v": 51.85}, {"t": "2026-10-09 07:00:00-04", "v": 43.54}, {"t": "2026-10-09 08:00:00-04", "v": 67.73}, {"t": "2026-10-09 09:00:00-04", "v": 28.35}, {"t": "2026-10-09 10:00:00-04", "v": 35.7}, {"t": "2026-10-09 11:00:00-04", "v": 29.0}, {"t": "2026-10-09 12:00:00-04", "v": 20.3}, {"t": "2026-10-09 13:00:00-04", "v": 17.35}, {"t": "2026-10-09 14:00:00-04", "v": 42.74}, {"t": "2026-10-09 15:00:00-04", "v": 22.5}, {"t": "2026-10-09 16:00:00-04", "v": 15.57}, {"t": "2026-10-09 17:00:00-04", "v": 15.35}, {"t": "2026-10-09 18:00:00-04", "v": 13.07}, {"t": "2026-10-09 19:00:00-04", "v": 10.52}, {"t": "2026-10-09 20:00:00-04", "v": 26.37}, {"t": "2026-10-09 21:00:00-04", "v": 38.45}, {"t": "2026-10-09 22:00:00-04", "v": 25.92}, {"t": "2026-10-09 23:00:00-04", "v": 44.66}, {"t": "2026-10-10 00:00:00-04", "v": 32.71}, {"t": "2026-10-10 01:00:00-04", "v": 24.51}, {"t": "2026-10-10 02:00:00-04", "v": 27.49}, {"t": "2026-10-10 03:00:00-04", "v": 21.98}, {"t": "2026-10-10 04:00:00-04", "v": 23.81}, {"t": "2026-10-10 05:00:00-04", "v": 86.75}, {"t": "2026-10-10 06:00:00-04", "v": 39.54}, {"t": "2026-10-10 07:00:00-04", "v": 112.46}, {"t": "2026-10-10 08:00:00-04", "v": 57.41}, {"t": "2026-10-10 09:00:00-04", "v": 22.61}, {"t": "2026-10-10 10:00:00-04", "v": 20.14}, {"t": "2026-10-10 11:00:00-04", "v": 16.49}, {"t": "2026-10-10 12:00:00-04", "v": 14.57}, {"t": "2026-10-10 13:00:00-04", "v": 14.27}, {"t": "2026-10-10 14:00:00-04", "v": 15.12}, {"t": "2026-10-10 15:00:00-04", "v": 10.97}, {"t": "2026-10-10 16:00:00-04", "v": 12.6}, {"t": "2026-10-10 17:00:00-04", "v": -14.9}, {"t": "2026-10-10 18:00:00-04", "v": -23.45}, {"t": "2026-10-10 19:00:00-04", "v": 24.09}, {"t": "2026-10-10 20:00:00-04", "v": 15.92}, {"t": "2026-10-10 21:00:00-04", "v": 6.54}, {"t": "2026-10-10 22:00:00-04", "v": -27.27}, {"t": "2026-10-10 23:00:00-04", "v": 6.08}, {"t": "2026-10-11 00:00:00-04", "v": 23.82}, {"t": "2026-10-11 01:00:00-04", "v": 17.25}, {"t": "2026-10-11 02:00:00-04", "v": 15.86}, {"t": "2026-10-11 03:00:00-04", "v": 18.26}, {"t": "2026-10-11 04:00:00-04", "v": 16.34}, {"t": "2026-10-11 05:00:00-04", "v": 19.23}, {"t": "2026-10-11 06:00:00-04", "v": 18.37}, {"t": "2026-10-11 07:00:00-04", "v": 50.94}, {"t": "2026-10-11 08:00:00-04", "v": 58.98}, {"t": "2026-10-11 09:00:00-04", "v": 55.38}, {"t": "2026-10-11 10:00:00-04", "v": 29.52}, {"t": "2026-10-11 11:00:00-04", "v": 31.45}, {"t": "2026-10-11 12:00:00-04", "v": 33.57}, {"t": "2026-10-11 13:00:00-04", "v": 50.63}, {"t": "2026-10-11 14:00:00-04", "v": 28.74}, {"t": "2026-10-11 15:00:00-04", "v": 24.78}, {"t": "2026-10-11 16:00:00-04", "v": 21.81}, {"t": "2026-10-11 17:00:00-04", "v": 16.99}, {"t": "2026-10-11 18:00:00-04", "v": 8.12}, {"t": "2026-10-11 19:00:00-04", "v": 3.86}, {"t": "2026-10-11 20:00:00-04", "v": 15.37}, {"t": "2026-10-11 21:00:00-04", "v": 8.93}, {"t": "2026-10-11 22:00:00-04", "v": 4.39}, {"t": "2026-10-11 23:00:00-04", "v": 11.36}, {"t": "2026-10-12 00:00:00-04", "v": 16.49}, {"t": "2026-10-12 01:00:00-04", "v": 13.54}, {"t": "2026-10-12 02:00:00-04", "v": 9.45}, {"t": "2026-10-12 03:00:00-04", "v": 6.69}, {"t": "2026-10-12 04:00:00-04", "v": 11.11}, {"t": "2026-10-12 05:00:00-04", "v": 12.64}, {"t": "2026-10-12 06:00:00-04", "v": 12.55}, {"t": "2026-10-12 07:00:00-04", "v": 7.62}, {"t": "2026-10-12 08:00:00-04", "v": 29.22}, {"t": "2026-10-12 09:00:00-04", "v": 23.83}, {"t": "2026-10-12 10:00:00-04", "v": 20.08}, {"t": "2026-10-12 11:00:00-04", "v": 24.07}, {"t": "2026-10-12 12:00:00-04", "v": 20.73}, {"t": "2026-10-12 13:00:00-04", "v": 23.18}, {"t": "2026-10-12 14:00:00-04", "v": 15.83}, {"t": "2026-10-12 15:00:00-04", "v": 1.01}, {"t": "2026-10-12 16:00:00-04", "v": 28.93}, {"t": "2026-10-12 17:00:00-04", "v": 46.64}, {"t": "2026-10-12 18:00:00-04", "v": 38.73}, {"t": "2026-10-12 19:00:00-04", "v": 32.81}, {"t": "2026-10-12 20:00:00-04", "v": 20.19}, {"t": "2026-10-12 21:00:00-04", "v": 10.89}, {"t": "2026-10-12 22:00:00-04", "v": 5.51}, {"t": "2026-10-12 23:00:00-04", "v": 13.69}, {"t": "2026-10-13 19:00:00-04", "v": 1049.54}, {"t": "2026-10-13 21:00:00-04", "v": 1.53}, {"t": "2026-10-14 17:00:00-04", "v": 93.89}];
+
+  function fmt(n) { return Math.round(n).toLocaleString('en-US'); }
+
+  // --- stat tiles from the real series ---
+  if (DEMAND.length) {
+    document.getElementById('stat-current').textContent = fmt(DEMAND[DEMAND.length - 1].v) + ' MW';
+    var last24 = DEMAND.slice(-24);
+    var peak = Math.max.apply(null, last24.map(function(d){ return d.v; }));
+    document.getElementById('stat-peak').textContent = fmt(peak) + ' MW';
+  }
+
+  // --- generic line chart renderer ---
+  function renderChart(svgId, tooltipId, data, color, opts) {
+    opts = opts || {};
+    var svg = document.getElementById(svgId);
+    var tooltip = document.getElementById(tooltipId);
+    var W = 600, H = 220, padL = 44, padR = 10, padT = 12, padB = 24;
+    var plotW = W - padL - padR, plotH = H - padT - padB;
+
+    var values = data.map(function(d){ return d.v; });
+    var vMin = Math.min.apply(null, values), vMax = Math.max.apply(null, values);
+    var pad = (vMax - vMin) * 0.1 || 1;
+    vMin -= pad; vMax += pad;
+
+    function x(i) { return padL + (i / (data.length - 1)) * plotW; }
+    function y(v) { return padT + plotH - ((v - vMin) / (vMax - vMin)) * plotH; }
+
+    var ns = 'http://www.w3.org/2000/svg';
+    function el(tag, attrs) {
+      var e = document.createElementNS(ns, tag);
+      for (var k in attrs) e.setAttribute(k, attrs[k]);
+      return e;
+    }
+
+    svg.innerHTML = '';
+
+    // gridlines + y labels (4 bands)
+    var steps = 4;
+    for (var s = 0; s <= steps; s++) {
+      var v = vMin + (vMax - vMin) * (s / steps);
+      var yy = y(v);
+      svg.appendChild(el('line', { x1: padL, x2: W - padR, y1: yy, y2: yy, class: 'chart-grid-line' }));
+      var label = opts.yFormat ? opts.yFormat(v) : fmt(v);
+      var t = el('text', { x: padL - 8, y: yy + 3, class: 'chart-axis-text', 'text-anchor': 'end' });
+      t.textContent = label;
+      svg.appendChild(t);
+    }
+
+    // x labels: first + last date
+    [0, data.length - 1].forEach(function(i) {
+      var t = el('text', { x: x(i), y: H - 6, class: 'chart-axis-text', 'text-anchor': i === 0 ? 'start' : 'end' });
+      t.textContent = data[i].t.slice(5, 10);
+      svg.appendChild(t);
+    });
+
+    // line path
+    var d = data.map(function(pt, i) { return (i === 0 ? 'M' : 'L') + x(i).toFixed(2) + ',' + y(pt.v).toFixed(2); }).join(' ');
+    svg.appendChild(el('path', { d: d, fill: 'none', stroke: color, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+
+    // flagged points
+    if (opts.flagKey) {
+      data.forEach(function(pt, i) {
+        if (pt[opts.flagKey]) {
+          svg.appendChild(el('circle', { cx: x(i), cy: y(pt.v), r: 4.5, fill: 'var(--red)', stroke: 'var(--surface-1)', 'stroke-width': 1.5 }));
+        }
+      });
+    }
+
+    // rounded data-end on last point
+    var lastI = data.length - 1;
+    svg.appendChild(el('circle', { cx: x(lastI), cy: y(data[lastI].v), r: 3, fill: color }));
+
+    // hover layer
+    var hoverLine = el('line', { x1: 0, x2: 0, y1: padT, y2: padT + plotH, stroke: 'var(--baseline)', 'stroke-width': 1, opacity: 0 });
+    svg.appendChild(hoverLine);
+    var hoverDot = el('circle', { r: 4, fill: color, stroke: 'var(--surface-1)', 'stroke-width': 1.5, opacity: 0 });
+    svg.appendChild(hoverDot);
+
+    var hitArea = el('rect', { x: padL, y: padT, width: plotW, height: plotH, fill: 'transparent' });
+    svg.appendChild(hitArea);
+
+    function handleMove(evt) {
+      var rect = svg.getBoundingClientRect();
+      var px = (evt.clientX - rect.left) / rect.width * W;
+      var i = Math.round(((px - padL) / plotW) * (data.length - 1));
+      i = Math.max(0, Math.min(data.length - 1, i));
+      var pt = data[i];
+      hoverLine.setAttribute('x1', x(i)); hoverLine.setAttribute('x2', x(i)); hoverLine.setAttribute('opacity', 1);
+      hoverDot.setAttribute('cx', x(i)); hoverDot.setAttribute('cy', y(pt.v)); hoverDot.setAttribute('opacity', 1);
+      var label = opts.yFormat ? opts.yFormat(pt.v) : fmt(pt.v) + ' MW';
+      tooltip.textContent = pt.t.slice(5, 16) + '  ' + label + (pt[opts.flagKey] ? '  (flagged)' : '');
+      tooltip.style.left = (rect.left - svg.getBoundingClientRect().left + (x(i) / W) * rect.width) + 'px';
+      tooltip.style.top = (y(pt.v) / H) * rect.height + 'px';
+      tooltip.style.opacity = 1;
+    }
+    function handleLeave() {
+      hoverLine.setAttribute('opacity', 0);
+      hoverDot.setAttribute('opacity', 0);
+      tooltip.style.opacity = 0;
+    }
+    hitArea.addEventListener('mousemove', handleMove);
+    hitArea.addEventListener('mouseleave', handleLeave);
+    hitArea.addEventListener('touchmove', function(e) { handleMove(e.touches[0]); }, { passive: true });
+    hitArea.addEventListener('touchend', handleLeave);
+  }
+
+  if (DEMAND.length) renderChart('chart-demand', 'tooltip-demand', DEMAND, 'var(--blue)', { flagKey: 'flagged' });
+  if (PPL.length) renderChart('chart-ppl', 'tooltip-ppl', PPL, 'var(--orange)', { yFormat: function(v){ return '$' + Math.round(v); } });
+})();
+</script>
+
+</body>
+</html>
