@@ -863,6 +863,18 @@ README.md             documents the public/private data split explicitly for any
    attempt (and so an A1 capacity shortage delays nothing). Then Oracle Cloud VM + k3s, live
    24/7. Reserve the Oracle Public IP, point a free subdomain at it, wire up Traefik/cert-manager for Let's Encrypt
    TLS (see "Public access: domain + TLS" above) before calling the public link done.
+
+   Built and confirmed green in CI (2026-10-14): plain manifests for every service
+   (`infra/k8s/`, no Helm/Kustomize), a CI job that builds and pushes all three images to
+   GHCR, spins up a disposable `kind` cluster, applies everything except the Ingress
+   (needs cert-manager installed first), populates the PJM artifacts PVC through a
+   documented loader-pod procedure, and confirms both inference services healthy through
+   real K8s Services. Passed on the first run, no debugging round needed, unlike Phase 3/4's
+   Docker Compose verification. What this does not yet prove: the real Oracle VM itself
+   (this ran against a throwaway `kind` cluster on a GitHub Actions runner, not the actual
+   2 OCPU/12GB target) and the Ingress/cert-manager/TLS path, which needs a real registered
+   subdomain and a cluster with cert-manager installed, neither of which exist yet. See
+   `infra/k8s/README.md` for the current state in full.
 6. **Stretch** (in priority order): CI/CD auto-deploy, Slack/email alerting, Terraform IaC.
 7. **Custom frontend** (decided 2026-10-14, not started, genuinely new scope beyond this
    doc's original plan): a real web app on top of the data this pipeline already produces,

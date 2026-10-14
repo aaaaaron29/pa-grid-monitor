@@ -7,19 +7,18 @@ pattern, not Docker Compose's `depends_on`.
 
 ## Current state (2026-10-14)
 
-Written and YAML-syntax-validated (every file parses, the embedded dashboard JSON inside
-`08-grafana.yaml` round-trips back to valid JSON). **Not yet applied to a real cluster.**
-Same honest caveat `docker-compose.yml` had before CI actually proved it: careful on paper
-is not the same as proven. Two real things are still missing before that proof is possible:
+Confirmed green in CI (`k8s-smoke-test`, passed on the first run): images build and push to
+`ghcr.io/aaaaaron29/pa-grid-monitor-{ingestion,eia-inference,pjm-inference}:latest`, a
+disposable `kind` cluster comes up, every manifest here except `09-ingress.yaml` applies
+cleanly (the Ingress needs cert-manager's CRDs installed first, out of scope for that job
+the same way `compose-smoke-test` never tests real DNS/TLS either), the PJM artifacts PVC
+gets populated through the documented loader-pod procedure, and both inference services
+report healthy through their real K8s Services afterward.
 
-1. **No images are published yet.** Every manifest here references
-   `ghcr.io/aaaaaron29/pa-grid-monitor-{ingestion,eia-inference,pjm-inference}:latest`,
-   which doesn't exist as a real pushable image yet, only as local Dockerfiles. A CI job to
-   build and push these on merge to `main` is the next piece of work, then a `kind`-based CI
-   job (mirroring `compose-smoke-test`'s approach) to actually apply these manifests against
-   a real, disposable Kubernetes cluster and confirm everything comes up.
-2. **The PJM artifacts PVC starts empty.** See `06-inference.yaml`'s comment for the manual
-   `kubectl cp` steps required after `pjm-inference`'s pod exists.
+Still real, not yet proven: the actual Oracle VM deploy itself (this was verified against a
+throwaway `kind` cluster on a GitHub Actions runner, not the real 2 OCPU/12GB target), and
+the Ingress/cert-manager/TLS path, which needs a real registered subdomain and a cluster
+with cert-manager installed, neither of which exist yet.
 
 ## Applying this for real
 
