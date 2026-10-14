@@ -1,0 +1,54 @@
+# Architecture.md "Public access: domain + TLS": route a subdomain to Grafana, terminate
+# TLS via Let's Encrypt, and never expose anything else (Kafka, Postgres, the rest of
+# Grafana) through the ingress. The last part is enforced by Grafana itself, not by a path
+# rule here: Grafana's own "Externally Shared Dashboards" feature generates a public URL
+# for one specific dashboard that bypasses login, while every other path still requires
+# auth. So this Ingress just routes all traffic for the subdomain to the Grafana Service;
+# restricting what's actually reachable without logging in is Grafana's job, configured in
+# its UI per dashboard, not something this file can express.
+#
+# Prerequisites this file assumes but doesn't set up (real external steps, not something
+# `kubectl apply` can do):
+#   1. A registered subdomain pointed at the Oracle VM's reserved public IP (DuckDNS or
+#      similar -- Architecture.md's suggested fallback).
+#   2. cert-manager installed in the cluster (k3s bundles Traefik, not cert-manager --
+#      install via its own manifests/Helm chart first: https://cert-manager.io/docs/installation/).
+#   3. Replace grid-watch.example.com below with the real subdomain once registered.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: REPLACE-WITH-A-REAL-CONTACT-EMAIL
+    privateKeySecretRef:
+      name: letsencrypt-account-key
+    solvers:
+      - http01:
+          ingress:
+            class: traefik
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana-public
+  namespace: pjm-grid-watch
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts: ["grid-watch.example.com"]
+      secretName: grafana-public-tls
+  rules:
+    - host: grid-watch.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana
+                port:
+                  number: 3000

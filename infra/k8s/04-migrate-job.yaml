@@ -1,0 +1,24 @@
+# One-shot schema migration, same scripts/apply_migrations.py the local and Compose setups
+# use. backoffLimit alone covers "Postgres isn't ready yet" (K8s retries a failed Job pod
+# automatically, no explicit wait step needed) -- see 00-namespace.yaml.
+#
+# NOTE: image path assumes a CI job publishes to ghcr.io/aaaaaron29/pa-grid-monitor-ingestion
+# (matches the GitHub repo name). That publish step doesn't exist yet as of writing this --
+# see infra/k8s/README.md for the current state before applying any of this for real.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: migrate
+  namespace: pjm-grid-watch
+spec:
+  backoffLimit: 10
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: migrate
+          image: ghcr.io/aaaaaron29/pa-grid-monitor-ingestion:latest
+          command: ["python", "scripts/apply_migrations.py"]
+          envFrom:
+            - configMapRef: { name: pjm-grid-watch-config }
+            - secretRef: { name: pjm-grid-watch-secrets }

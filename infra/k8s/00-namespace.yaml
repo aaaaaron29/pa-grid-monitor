@@ -1,0 +1,9 @@
+# Everything in this directory applies to this one namespace. kubectl apply -f infra/k8s/
+# does not guarantee file-ordering across resources, which is fine here: every Deployment
+# and the migrate Job are written to crash-loop and retry (standard K8s pattern) rather
+# than depend on apply order -- the migrate Job's backoffLimit alone covers "Postgres
+# isn't ready yet" without needing an explicit wait step (see 04-migrate-job.yaml).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pjm-grid-watch

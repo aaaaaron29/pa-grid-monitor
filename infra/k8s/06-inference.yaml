@@ -1,0 +1,101 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eia-inference
+  namespace: pjm-grid-watch
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: eia-inference } }
+  template:
+    metadata: { labels: { app: eia-inference } }
+    spec:
+      containers:
+        - name: eia-inference
+          # Architecture.md Section 7: the EIA artifact bakes into the image (public tier,
+          # nothing to protect), so this image is self-contained -- no volume needed.
+          image: ghcr.io/aaaaaron29/pa-grid-monitor-eia-inference:latest
+          envFrom:
+            - configMapRef: { name: pjm-grid-watch-config }
+            - secretRef: { name: pjm-grid-watch-secrets }
+          ports:
+            - { containerPort: 8000, name: http }
+            - { containerPort: 9100, name: metrics }
+          readinessProbe:
+            httpGet: { path: /health, port: 8000 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: 8000 }
+            initialDelaySeconds: 15
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata: { name: eia-inference, namespace: pjm-grid-watch }
+spec:
+  selector: { app: eia-inference }
+  ports:
+    - { name: http, port: 8000, targetPort: 8000 }
+    - { name: metrics, port: 9100, targetPort: 9100 }
+---
+# Architecture.md Section 7: a PJM-trained artifact is PJM-derived material and must never
+# be committed or baked into a public image -- it lives on a PVC, mounted at runtime.
+# This PVC starts empty; populate it manually after creating it, e.g.:
+#   kubectl -n pjm-grid-watch cp artifacts/pjm_detector_PECO.joblib \
+#     $(kubectl -n pjm-grid-watch get pod -l app=pjm-inference -o name | head -1 | cut -d/ -f2):/app/artifacts/pjm_detector_PECO.joblib
+#   (repeat for PPL, METED, PENELEC, DUQ)
+# Re-run after retraining. There's no automated artifact-publishing path yet -- that would
+# need its own registry/object-storage story, which is new scope, not part of this phase.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pjm-artifacts
+  namespace: pjm-grid-watch
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pjm-inference
+  namespace: pjm-grid-watch
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: pjm-inference } }
+  template:
+    metadata: { labels: { app: pjm-inference } }
+    spec:
+      containers:
+        - name: pjm-inference
+          image: ghcr.io/aaaaaron29/pa-grid-monitor-pjm-inference:latest
+          envFrom:
+            - configMapRef: { name: pjm-grid-watch-config }
+            - secretRef: { name: pjm-grid-watch-secrets }
+          ports:
+            - { containerPort: 8000, name: http }
+            - { containerPort: 9100, name: metrics }
+          volumeMounts:
+            - { name: artifacts, mountPath: /app/artifacts, readOnly: true }
+          readinessProbe:
+            httpGet: { path: /health, port: 8000 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: 8000 }
+            initialDelaySeconds: 15
+            periodSeconds: 20
+      volumes:
+        - name: artifacts
+          persistentVolumeClaim: { claimName: pjm-artifacts }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: pjm-inference, namespace: pjm-grid-watch }
+spec:
+  selector: { app: pjm-inference }
+  ports:
+    - { name: http, port: 8000, targetPort: 8000 }
+    - { name: metrics, port: 9100, targetPort: 9100 }

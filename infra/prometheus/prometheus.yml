@@ -1,8 +1,14 @@
 # Local dev / Compose scrape config. Targets are docker-compose.yml's service names on the
 # internal Compose network (each service listens on METRICS_PORT, which defaults to 9100 --
 # common/config.py -- and no service in docker-compose.yml overrides it, so every target
-# below uses the same port). The Oracle k3s deploy (Phase 5) uses Kubernetes service
-# discovery instead of this static file; this one is for Compose-based local dev only.
+# below uses the same port).
+#
+# The Oracle k3s deploy (infra/k8s/) reuses this exact same static config, not Kubernetes
+# API-based service discovery: every component there also gets its own K8s Service, which
+# is a stable DNS name regardless of which pod backs it, so a static target list works
+# identically in both places. kubernetes_sd_configs would add real complexity (a
+# ServiceAccount, RBAC to list pods/services) to solve a problem this setup doesn't have at
+# this scale.
 global:
   scrape_interval: 15s
 

@@ -1,0 +1,114 @@
+# Four Deployments, one per poller/consumer, all sharing the same ingestion image and
+# differing only in their startup module (matches docker-compose.yml's command: override
+# on the same pattern). No Service needed for any of these -- nothing calls them directly,
+# they only produce to / consume from Kafka. Each still exposes its metrics port so
+# Prometheus can scrape it (see 08-prometheus.yaml's scrape config, which targets these by
+# pod-selecting Service... actually by plain DNS name below via a small headless Service
+# each, kept minimal).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eia-poller
+  namespace: pjm-grid-watch
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: eia-poller } }
+  template:
+    metadata: { labels: { app: eia-poller } }
+    spec:
+      containers:
+        - name: eia-poller
+          image: ghcr.io/aaaaaron29/pa-grid-monitor-ingestion:latest
+          args: ["ingestion.eia_poller"]
+          envFrom:
+            - configMapRef: { name: pjm-grid-watch-config }
+            - secretRef: { name: pjm-grid-watch-secrets }
+          ports: [{ containerPort: 9100, name: metrics }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: eia-poller, namespace: pjm-grid-watch }
+spec:
+  selector: { app: eia-poller }
+  ports: [{ port: 9100, targetPort: 9100 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eia-consumer
+  namespace: pjm-grid-watch
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: eia-consumer } }
+  template:
+    metadata: { labels: { app: eia-consumer } }
+    spec:
+      containers:
+        - name: eia-consumer
+          image: ghcr.io/aaaaaron29/pa-grid-monitor-ingestion:latest
+          args: ["ingestion.eia_poller.consumer"]
+          envFrom:
+            - configMapRef: { name: pjm-grid-watch-config }
+            - secretRef: { name: pjm-grid-watch-secrets }
+          ports: [{ containerPort: 9100, name: metrics }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: eia-consumer, namespace: pjm-grid-watch }
+spec:
+  selector: { app: eia-consumer }
+  ports: [{ port: 9100, targetPort: 9100 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pjm-poller
+  namespace: pjm-grid-watch
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: pjm-poller } }
+  template:
+    metadata: { labels: { app: pjm-poller } }
+    spec:
+      containers:
+        - name: pjm-poller
+          image: ghcr.io/aaaaaron29/pa-grid-monitor-ingestion:latest
+          args: ["ingestion.pjm_poller"]
+          envFrom:
+            - configMapRef: { name: pjm-grid-watch-config }
+            - secretRef: { name: pjm-grid-watch-secrets }
+          ports: [{ containerPort: 9100, name: metrics }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: pjm-poller, namespace: pjm-grid-watch }
+spec:
+  selector: { app: pjm-poller }
+  ports: [{ port: 9100, targetPort: 9100 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pjm-consumer
+  namespace: pjm-grid-watch
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: pjm-consumer } }
+  template:
+    metadata: { labels: { app: pjm-consumer } }
+    spec:
+      containers:
+        - name: pjm-consumer
+          image: ghcr.io/aaaaaron29/pa-grid-monitor-ingestion:latest
+          args: ["ingestion.pjm_poller.consumer"]
+          envFrom:
+            - configMapRef: { name: pjm-grid-watch-config }
+            - secretRef: { name: pjm-grid-watch-secrets }
+          ports: [{ containerPort: 9100, name: metrics }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: pjm-consumer, namespace: pjm-grid-watch }
+spec:
+  selector: { app: pjm-consumer }
+  ports: [{ port: 9100, targetPort: 9100 }]
