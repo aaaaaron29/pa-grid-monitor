@@ -30,9 +30,13 @@ The project claims what it actually does. See Section 3.
   train/test split (train on older data, evaluate on most recent) to avoid lookahead/leakage.
   Document the methodology in the README, not just the code. Keep any description of the
   model honest: don't overclaim rigor beyond what was actually validated.
-- **Interconnection-queue correlation is a CORE feature, not a stretch goal**: joining
-  data-center siting/large-load queue data with zone-level grid stress is part of the main
-  pipeline from day one.
+- **Interconnection-queue correlation was planned as a core feature, not a stretch goal**:
+  joining data-center siting/large-load queue data with zone-level grid stress. **Confirmed
+  deferred (2026-10-14): there is no public data source to join against yet.** See Section 3
+  for the real findings; this is not an assumption. The schema (`interconnection_queue` as
+  slowly-changing snapshots, Section 6) is still designed for it, so adding it back once a
+  real source exists is a bolt-on, not a redesign. Phases 4 and 5 proceed on EIA + PJM zone
+  data only.
 - **Visualization:** Prometheus + Grafana (self-hosted on the same cluster), not Streamlit.
 - **Deployment:** real Kubernetes (k3s), not just Docker Compose. Compose is for local dev only.
 - **Hosting:** Oracle Cloud "Always Free" tier VM, chosen because it's the only realistic
@@ -151,6 +155,23 @@ The project claims what it actually does. See Section 3.
   (CIFP-LLA package materials, board disclosure PDFs) are public but are periodic
   PDFs/spreadsheets, not a live feed; treat queue ingestion as **batch**, not streaming,
   regardless of which source wins.
+  - **Investigated for real (2026-10-14), not assumed, and confirmed deferred.** The
+    registry's approved provisions took effect 2026-10-12, one to two days before this
+    check. Public access will be **aggregated data only**, under PJM's existing
+    confidentiality protections, so even once live it will not be the rich per-facility
+    dataset this doc's schema was originally imagining. More importantly: PJM's own
+    compliance filing describing the actual implementation mechanism is due within 30 days
+    of the FERC order, around 2026-11-08 at the earliest. There is nothing to build against
+    yet; this is not a missing-API-key problem, it is a does-not-exist-yet problem.
+  - **`gridstatus`'s existing `get_interconnection_queue()` for PJM is a different, older
+    dataset and does not substitute for this.** That is the long-standing *generator*
+    interconnection queue (new power plants/storage requesting to connect), not the
+    brand-new *large-load* registry (new large consumers like data centers). Same-sounding
+    name, unrelated dataset; do not wire it up expecting it to answer this project's
+    correlation question.
+  - **Decision: defer the correlation layer rather than build toward an undefined target.**
+    Phases 4 and 5 proceed on EIA + PJM zone data only. Revisit after PJM's compliance
+    filing actually defines an access mechanism, no earlier than 2026-11-08.
 - **Oracle's Always Free compute was quietly cut in July 2026**, now 2 OCPUs / 12GB RAM
   total (ARM Ampere A1), down from the historical 4/24. This is still enough for a lean
   single-node k3s running Kafka (KRaft mode, no Zookeeper), Postgres, the inference service,
@@ -753,10 +774,10 @@ README.md             documents the public/private data split explicitly for any
 1. **Ingestion + storage**: EIA poller (public tier) first since it's unblocked and
    zero-risk, plus the EIA **backfill** to 2019 in the same pass (the model has nothing to
    train on without it); PJM poller and its 2-year backfill once non-member access is
-   provisioned; queue scraper/Large Load Registry once its access mechanism is confirmed.
-   Postgres schema for all three, UTC `timestamptz` throughout. Confirm the PKI auth
-   question and the Large Load Registry data source here first; don't proceed past this
-   phase on unverified assumptions.
+   provisioned. Queue scraper/Large Load Registry confirmed deferred (Section 3): no access
+   mechanism exists yet, revisit after PJM's compliance filing. Postgres schema for all
+   tiers in scope, UTC `timestamptz` throughout. Confirm the PKI auth question here first;
+   don't proceed past this phase on unverified assumptions.
 2. **Model**: baselines first (seasonal-naive, day×hour profile), then isolation forest
    and optionally an LSTM forecast per tier, on the frozen time-based split from Section 6.
    Build the synthetic-injection harness here too: it is the only quantitative handle on
@@ -810,8 +831,9 @@ README.md             documents the public/private data split explicitly for any
      to prove.
 4. **Observability**: Prometheus + two Grafana dashboards: the public one (EIA-only data,
    shared via Grafana's Externally Shared Dashboards feature) and the private one (PJM zone
-   data + data-center correlation, authenticated access only). Double-check the public
-   dashboard genuinely has zero PJM-sourced panels before enabling external sharing.
+   data; the data-center correlation panel is deferred, see Section 3, so this is PJM zone
+   data alone for now). Double-check the public dashboard genuinely has zero PJM-sourced
+   panels before enabling external sharing.
 5. **Deploy**: write the Kubernetes manifests and validate them on a **local k3d/kind
    cluster first**, so the Oracle deploy is "apply known-good manifests" rather than a first
    attempt (and so an A1 capacity shortage delays nothing). Then Oracle Cloud VM + k3s, live
