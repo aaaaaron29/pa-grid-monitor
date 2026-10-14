@@ -798,11 +798,16 @@ README.md             documents the public/private data split explicitly for any
      correctly declined to score rather than scoring on a thin window, confirmed as
      intended behavior via a mocked-history unit test, the same way the EIA service's logic
      was unit-tested before its live demo.
-   - `docker-compose.yml` and the two inference-service Dockerfiles are written (matching
-     Section 7's per-tier artifact policy: the EIA image bakes its artifact in, the PJM
-     image mounts it at runtime) but not yet run against a real `docker compose up`: this
-     dev machine has no Docker install. Verify on a machine that has Docker before relying
-     on it.
+   - `docker-compose.yml` and the two inference-service Dockerfiles (matching Section 7's
+     per-tier artifact policy: the EIA image bakes its artifact in, the PJM image mounts it
+     at runtime) could not be run locally, this dev machine has no Docker install, so
+     verification moved to CI instead: a dedicated GitHub Actions job builds all three
+     images for real and brings up Postgres, Kafka, and both inference services together
+     (never the pollers, which would make live API calls), using throwaway detectors fit on
+     synthetic data since CI has no real EIA/PJM history to train on. Confirmed green
+     (2026-10-14): both inference services report their model loaded and their Kafka
+     consumer attached on a real Docker install, which is what this verification needed
+     to prove.
 4. **Observability**: Prometheus + two Grafana dashboards: the public one (EIA-only data,
    shared via Grafana's Externally Shared Dashboards feature) and the private one (PJM zone
    data + data-center correlation, authenticated access only). Double-check the public
