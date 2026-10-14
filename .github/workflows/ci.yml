@@ -195,20 +195,36 @@ jobs:
             sleep 3
           done
           curl -fs http://localhost:9090/-/ready
-          # eia-inference and pjm-inference are the two targets actually started in this
-          # job; confirm Prometheus reaches them (not just that it's up itself).
-          targets=$(curl -fs 'http://localhost:9090/api/v1/targets')
-          echo "$targets"
-          for job in eia-inference pjm-inference; do
-            up=$(echo "$targets" | python -c "
+
+          # Prometheus being ready (its own HTTP API working) is independent of whether it
+          # has actually completed a scrape cycle yet (15s scrape_interval) -- checking
+          # target health only once right after /-/ready is a timing race, not a real
+          # check. Confirmed live in CI (2026-10-14): both targets briefly showed down
+          # (one a DNS blip, one "connection refused") purely because this ran before the
+          # first scrape cycle completed. Retry the actual target health, not just
+          # Prometheus's own readiness.
+          for i in $(seq 1 20); do
+            targets=$(curl -fs 'http://localhost:9090/api/v1/targets')
+            all_up=true
+            for job in eia-inference pjm-inference; do
+              up=$(echo "$targets" | python -c "
           import json, sys
           data = json.load(sys.stdin)
           matches = [t for t in data['data']['activeTargets'] if t['labels']['job'] == '$job']
           print(matches[0]['health'] if matches else 'missing')
           ")
-            echo "$job: $up"
-            [ "$up" = "up" ] || { echo "Prometheus target $job is not up"; exit 1; }
+              echo "attempt $i: $job -> $up"
+              [ "$up" = "up" ] || all_up=false
+            done
+            if [ "$all_up" = "true" ]; then
+              echo "Both eia-inference and pjm-inference targets are up."
+              exit 0
+            fi
+            sleep 5
           done
+          echo "Timed out waiting for Prometheus targets to report up."
+          echo "$targets"
+          exit 1
 
       - name: Wait for Grafana and check both dashboards were provisioned
         run: |
