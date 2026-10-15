@@ -1,11 +1,10 @@
 # pa-grid-monitor
 
-Near-real-time anomaly detection on the PJM electricity grid, plus a public map of
-publicly reported data center projects in Pennsylvania and a passcode-gated analysis layer
-that sets zone-level grid stress beside them.
+Anomaly detection on the PJM electricity grid, plus a public map of publicly reported data
+center projects in Pennsylvania and a passcode-gated analysis layer that sets zone-level grid
+stress beside them.
 
-- **Live site:** https://girdwatch.vercel.app
-- **Static demo (no database, snapshot data):** https://aaaaaron29.github.io/pa-grid-monitor/
+**Live site:** https://gridwatchpa.vercel.app/
 
 **Status.** The pipeline (ingestion, Kafka, Postgres, two inference services, Prometheus,
 Grafana) is built and CI-verified end to end, and the Kubernetes manifests are validated
@@ -20,8 +19,8 @@ Polls grid data on a schedule into Kafka and Postgres, forecasts what demand sho
 flags the intervals where reality diverges from that forecast, and shows the result on a
 website and in Grafana.
 
-"Near-real-time" is literal: EIA publishes on a multi-hour lag and PJM refreshes every five
-minutes, so this is scheduled polling, not a continuous event stream.
+Data arrives by scheduled polling, not a continuous event stream: EIA publishes on a
+multi-hour lag and PJM refreshes every five minutes.
 
 ## The website
 
@@ -76,14 +75,10 @@ territories, power plants and facilities as served by Penn State's PASDA.
 | **Visibility** | Open site and this repository | Passcode-gated pages only |
 
 PJM's Data Miner terms prohibit non-members from republishing its data, so everything
-publicly visible here (the public routes, the static demo and this repository) is built
-exclusively on EIA's U.S. federal public-domain data, public geography and public reporting.
+publicly visible here (the public routes and this repository) is built exclusively on EIA's U.S. federal public-domain data, public geography and public reporting.
 The PJM tier exists for zone-level analysis and is demonstrated behind a passcode rather than
 published: **no raw PJM values, sample rows, screenshots, or PJM-trained model artifacts
 appear in this repo.** Code, schema, methodology, and aggregate findings do.
-
-The static demo build excludes the private routes and scans its output for forbidden strings
-before it replaces `docs/`.
 
 ## Methodology
 
@@ -115,7 +110,6 @@ Full reasoning, including what is deliberately *not* claimed, is in
 - **Frontend:** `cd frontend && npm install && npm run dev`, with `DATABASE_URL` and
   `PRIVATE_PASSCODE` set in `frontend/.env.local` (see `.env.example`; gitignored, never
   commit it). The public map needs neither.
-- **Static demo:** `python scripts/build_static_demo.py` rebuilds `docs/`.
 - **Checks:** `pytest`, `ruff check .`, and in `frontend/`: `npx tsc --noEmit`, `npm run lint`
   and `npm run build`.
 
