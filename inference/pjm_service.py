@@ -44,12 +44,14 @@ from common.metrics import (
     SCORING_RUNS_TOTAL,
     start_metrics_server,
 )
+from inference.skip_tracker import SkipTracker
 from model.artifact import ModelArtifact
 from model.data import apply_missing_data_policy
 from model.data_pjm import ZONES, load_pjm_series
 from model.score import min_history_periods, score_latest
 
 log = logging.getLogger(__name__)
+_skips = SkipTracker(log)
 
 ARTIFACT_PATH_TEMPLATE = "artifacts/pjm_detector_{zone}.joblib"
 MAX_FORWARD_FILL_PERIODS = 3  # matches model/train.py's PJM_MAX_FORWARD_FILL_PERIODS
@@ -102,6 +104,8 @@ def _score_and_store(settings: Settings, artifacts: dict[str, ModelArtifact], ro
             "skipping score, insufficient settled history",
             extra={"zone": row["zone"], "period_start": row["period_start"]},
         )
+        # DEBUG alone hid a multi-day halt for days; this warns once per halt (see skip_tracker).
+        _skips.skipped(row["zone"], period_start=row["period_start"])
         # Worth tracking: this is exactly the symptom of the real pjm_lmp_readings gap
         # confirmed live 2026-10-13 (see module docstring), not routine noise.
         SCORING_RUNS_TOTAL.labels(tier=TIER, outcome="skipped").inc()
@@ -122,6 +126,7 @@ def _score_and_store(settings: Settings, artifacts: dict[str, ModelArtifact], ro
         SCORING_LATENCY_SECONDS.labels(tier=TIER).observe(time.monotonic() - started)
 
     SCORING_RUNS_TOTAL.labels(tier=TIER, outcome="scored").inc()
+    _skips.scored(row["zone"])
     LAST_SUCCESSFUL_SCORE_TS.labels(tier=TIER).set(result["scored_at"].timestamp())
     if result["forest_flagged"]:
         ANOMALIES_FLAGGED_TOTAL.labels(tier=TIER, zone=row["zone"], detector="forest").inc()

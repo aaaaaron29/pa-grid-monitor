@@ -60,3 +60,49 @@ def score_latest(history: pd.Series, artifact: ModelArtifact) -> dict:
         "forest_flagged": forest_flagged,
         "flatline_flagged": flatline_flagged,
     }
+
+
+def score_since(history: pd.Series, artifact: ModelArtifact, since: pd.Timestamp) -> list[dict]:
+    """Score every point at or after `since` in one pass, returning the same dicts that
+    score_latest would have returned for each of those points had they been scored one at a
+    time as they arrived.
+
+    That equivalence holds because nothing in the pipeline looks forward: the seasonal-naive
+    forecast, the lagged and rolling features, and the detector are all causal, and the
+    detector scores each row on its own. It is what lets the dashboards show a forecast and
+    residuals for a stretch the live service skipped (for example, while a gap in the stored
+    prices made it decline to score), and it is pinned by a test that compares the two.
+
+    `history` has the same requirements as for score_latest and must begin at least
+    min_history_periods(artifact) - 1 periods before `since`; points with too little context
+    before them come back with a null residual and score rather than a made-up one."""
+    required = min_history_periods(artifact)
+    if len(history) < required:
+        raise ValueError(f"need at least {required} trailing periods, got {len(history)}")
+
+    forecast = seasonal_naive_predict(history, lag_periods=artifact.seasonal_naive_lag_periods)
+    features = build_features(
+        history,
+        forecast,
+        rate_of_change_lag_periods=artifact.rate_of_change_lag_periods,
+        rolling_window_periods=artifact.rolling_window_periods,
+    )
+    scores = artifact.detector.score(features)
+    forest_flags = artifact.detector.flag(scores) & scores.notna()
+    flatline_flags = detect_flatline(
+        features["rolling_std"], artifact.flatline_floor, artifact.rolling_window_periods
+    )
+
+    out = []
+    for ts in features.index[features.index >= since]:
+        residual, score = features.at[ts, "residual"], scores.at[ts]
+        out.append(
+            {
+                "period_start": ts,
+                "residual": None if pd.isna(residual) else float(residual),
+                "forest_score": None if pd.isna(score) else float(score),
+                "forest_flagged": bool(forest_flags.at[ts]),
+                "flatline_flagged": bool(flatline_flags.at[ts]),
+            }
+        )
+    return out

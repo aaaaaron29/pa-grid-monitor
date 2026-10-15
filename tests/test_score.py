@@ -104,3 +104,42 @@ def test_score_latest_flags_a_sustained_flatline():
     result = score_latest(history, artifact)
 
     assert result["flatline_flagged"] is True
+
+
+def test_score_since_matches_scoring_each_point_as_it_arrives():
+    """The batch scorer must give exactly what score_latest gives point by point; that is the
+    whole basis for using it to fill in a stretch the live service skipped."""
+    from model.score import score_since
+
+    artifact = _make_artifact(lag_periods=24)
+    n = 24 * 6
+    idx = _hourly_index(n)
+    rng = np.random.default_rng(7)
+    values = 100.0 + rng.normal(0, 5, n)
+    values[100] += 80.0  # a spike the detector should react to
+    history = pd.Series(values, index=idx)
+    since = idx[24 * 4]
+
+    batch = score_since(history, artifact, since)
+
+    assert [r["period_start"] for r in batch] == list(idx[idx >= since])
+    for row in batch:
+        one_at_a_time = score_latest(history.loc[: row["period_start"]], artifact)
+        assert row["period_start"] == one_at_a_time["period_start"]
+        assert row["forest_flagged"] == one_at_a_time["forest_flagged"]
+        assert row["flatline_flagged"] == one_at_a_time["flatline_flagged"]
+        for key in ("residual", "forest_score"):
+            if one_at_a_time[key] is None:
+                assert row[key] is None
+            else:
+                assert row[key] == pytest.approx(one_at_a_time[key])
+    assert any(r["forest_flagged"] for r in batch), "the injected spike should be flagged"
+
+
+def test_score_since_raises_on_too_little_history():
+    from model.score import score_since
+
+    artifact = _make_artifact(lag_periods=24)
+    short = pd.Series([100.0] * 10, index=_hourly_index(10))
+    with pytest.raises(ValueError):
+        score_since(short, artifact, short.index[0])

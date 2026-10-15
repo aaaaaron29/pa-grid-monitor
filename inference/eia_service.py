@@ -45,11 +45,13 @@ from common.metrics import (
     SCORING_RUNS_TOTAL,
     start_metrics_server,
 )
+from inference.skip_tracker import SkipTracker
 from model.artifact import ModelArtifact
 from model.data import apply_missing_data_policy, load_eia_series
 from model.score import min_history_periods, score_latest
 
 log = logging.getLogger(__name__)
+_skips = SkipTracker(log)
 
 ARTIFACT_PATH = "artifacts/eia_detector.joblib"
 SCORED_READING_TYPE = "D"
@@ -100,6 +102,8 @@ def _score_and_store(settings: Settings, artifact: ModelArtifact, row: dict) -> 
             "skipping score, insufficient settled history",
             extra={"period_start": row["period_start"]},
         )
+        # DEBUG alone hides a halt; this warns once per halt (see skip_tracker).
+        _skips.skipped("demand", period_start=row["period_start"])
         # Worth tracking: a persistently high skip rate here is exactly the symptom of a
         # real upstream history gap (confirmed live for PJM, 2026-10-13: the raw-ingestion
         # consumer wasn't running continuously), not routine noise like the reading_type
@@ -122,6 +126,7 @@ def _score_and_store(settings: Settings, artifact: ModelArtifact, row: dict) -> 
         SCORING_LATENCY_SECONDS.labels(tier=TIER).observe(time.monotonic() - started)
 
     SCORING_RUNS_TOTAL.labels(tier=TIER, outcome="scored").inc()
+    _skips.scored("demand")
     LAST_SUCCESSFUL_SCORE_TS.labels(tier=TIER).set(result["scored_at"].timestamp())
     if result["forest_flagged"]:
         ANOMALIES_FLAGGED_TOTAL.labels(tier=TIER, zone=ZONE_LABEL, detector="forest").inc()
