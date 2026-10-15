@@ -44,17 +44,21 @@ def run_pjm_load_backfill(
     settings: Settings,
     start: datetime,
     end: datetime | None = None,
+    zones: list[str] | None = None,
 ) -> int:
-    """Backfills pjm_load_readings for all five PA zones over [start, end). `verified` comes
-    through per-row from the feed itself (normalize_pjm_load_rows), not passed in -- unlike
-    the LMP backfill, which always writes verified=True since it deliberately targets the
-    settlement-quality feed."""
+    """Backfills pjm_load_readings for all five PA zones over [start, end), or just `zones`
+    when given -- lets a failed run resume the zone it stopped on instead of re-pulling
+    zones that already finished (upsert is idempotent either way, but re-pulling wastes the
+    6 req/min non-member rate budget). `verified` comes through per-row from the feed itself
+    (normalize_pjm_load_rows), not passed in -- unlike the LMP backfill, which always writes
+    verified=True since it deliberately targets the settlement-quality feed."""
     end = end or datetime.now(UTC)
     total_written = 0
     retrieved_at = datetime.now(UTC)
+    codes = {z: ZONE_LOAD_CODES[z] for z in zones} if zones else ZONE_LOAD_CODES
 
     with connect(settings.postgres_dsn) as conn:
-        for zone, feed_code in ZONE_LOAD_CODES.items():
+        for zone, feed_code in codes.items():
             for chunk_start, chunk_end in _chunks(start, end, _CHUNK):
                 log.info(
                     "backfilling chunk",
