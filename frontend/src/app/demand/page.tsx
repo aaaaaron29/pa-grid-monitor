@@ -154,8 +154,11 @@ export default async function DemandPage() {
         <p>
           {summary.currentMw != null && peak7 != null && pctOfPeak != null ? (
             <>
-              PJM demand was {fmtMw(summary.currentMw)} {STATIC_DEMO ? "at the time of this snapshot" : "right now"}, {pctOfPeak}% of the{" "}
-              {fmtMw(peak7)} peak of the seven days before it.
+              {STATIC_DEMO
+                ? `PJM demand was ${fmtMw(summary.currentMw)} at the time of this snapshot, `
+                : `PJM demand is ${fmtMw(summary.currentMw)} right now, `}
+              {pctOfPeak}% of the {fmtMw(peak7)} peak of{" "}
+              {STATIC_DEMO ? "the seven days before it" : "the past seven days"}.
             </>
           ) : (
             <>Current demand is unavailable.</>
