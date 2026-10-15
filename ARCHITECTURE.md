@@ -20,9 +20,14 @@ The project claims what it actually does. See Section 3.
 
 ## 2. Scope decisions (locked in during planning; don't relitigate these mid-build)
 
-- **Stack:** Python only. Deliberately not adding another language here: this project
-  already stacks Kafka + Kubernetes + a trained model + Prometheus/Grafana; adding a new
-  language on top risks becoming unfocused.
+- **Stack:** Python only for the data/ML pipeline (ingestion, Kafka, the trained models).
+  Deliberately not adding another language there: that part already stacks Kafka +
+  Kubernetes + a trained model + Prometheus/Grafana; a new language on top of it risks
+  becoming unfocused. **Amended 2026-10-15:** this lock doesn't extend to the presentation
+  layer. The custom frontend (Section 9, item 7) is TypeScript/Next.js, a deliberate,
+  acknowledged exception, not a quiet reversal -- a read-only web frontend is a different
+  problem than the pipeline this rule was written for, and Python has no equivalent
+  ecosystem for it.
 - **Model depth:** a real trained ML model (isolation forest for anomaly scoring, LSTM or
   similar for load forecasting), not just a rolling z-score. **The detector scores forecast
   residuals, not raw demand levels** (see Section 6, "Feature design"); this is the decision
@@ -896,12 +901,28 @@ README.md             documents the public/private data split explicitly for any
    fallback, same section) once there's a reason to prioritize 24/7 public hosting over
    continuing other work.
 6. **Stretch** (in priority order): CI/CD auto-deploy, Slack/email alerting, Terraform IaC.
-7. **Custom frontend** (decided 2026-10-14, not started, genuinely new scope beyond this
-   doc's original plan): a real web app on top of the data this pipeline already produces,
-   not just the two Grafana dashboards. Comes after the backend/deploy phases, since it
-   needs a live data source to build against. Not yet designed: framework, pages, and
-   whether it reads Postgres through a new API layer or talks to Grafana/Prometheus
-   directly are all open. Uses the `pbakaus/impeccable` design plugin when this starts.
+7. **Custom frontend** (decided 2026-10-14, design finalized 2026-10-15, replaces both
+   Grafana dashboards): Next.js (App Router, TypeScript) in `frontend/`, deployed to Vercel,
+   reading Postgres directly via parameterized SQL in TypeScript query functions (Route
+   Handlers as serverless functions) -- the same "reads Postgres directly" pattern Grafana
+   already used, not a new API layer. Database is Neon (serverless Postgres, free tier),
+   which the real ingestion pipeline's pollers/consumers/inference services are repointed
+   at; the historical data was migrated over via `pg_dump`/restore, not re-backfilled.
+   Charts are the project's own hand-rolled SVG renderer (already used in the case-study
+   page), ported into React components -- no new charting dependency.
+
+   **Public/private split, driven by a licensing constraint, not just a design choice:**
+   PJM's Data Miner 2 API terms prohibit non-member redistribution of data "contained in or
+   derived from" it (confirmed live via PJM's own API portal terms, 2026-10-15); this
+   project's key is non-member. So only EIA-930 data (federal, unrestricted) is public
+   (`/`, `/demand`); PJM zone data (LMP, load, and the PPL promises-vs-measured comparison
+   that depends on it) lives behind a single shared-passcode gate (`/private/zones`,
+   `/private/accountability`), mirroring the split `private_pjm.json`'s own methodology
+   panel already documented. `docs/index.html` (the static case-study mock) currently
+   violates this by showing PJM-sourced figures publicly; left as-is for now by deliberate
+   choice, not fixed as part of this build. Resolving a real PJM Redistribution License, if
+   ever pursued, would be a separate follow-up that could later make the accountability
+   content public. Uses the `pbakaus/impeccable` design plugin for the UI pass.
 
 ## 10. Steps to complete before building starts
 
