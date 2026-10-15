@@ -35,14 +35,9 @@ def already_applied(conn: psycopg.Connection) -> set[str]:
         return {row[0] for row in cur.fetchall()}
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--dsn", default=None)
-    args = parser.parse_args()
-
-    configure_logging(get_settings().log_level)
-    dsn = args.dsn or get_settings().postgres_dsn
-
+def apply_migrations(dsn: str) -> None:
+    """Apply every infra/sql file not yet recorded in schema_migrations. Importable so other
+    scripts (the Neon sync) can make sure a target database has the current schema first."""
     files = sorted(SQL_DIR.glob("*.sql"))
     if not files:
         log.warning("no migration files found", extra={"dir": str(SQL_DIR)})
@@ -60,6 +55,15 @@ def main() -> None:
                 cur.execute(path.read_text(encoding="utf-8"))
             conn.commit()
             log.info("applied", extra={"version": version})
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--dsn", default=None)
+    args = parser.parse_args()
+
+    configure_logging(get_settings().log_level)
+    apply_migrations(args.dsn or get_settings().postgres_dsn)
 
 
 if __name__ == "__main__":

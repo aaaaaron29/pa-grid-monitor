@@ -32,6 +32,11 @@ class Settings(BaseSettings):
     # --- Storage ---
     postgres_dsn: str = "postgresql://pjm_grid_watch:pjm_grid_watch@localhost:5432/pjm_grid_watch"
     kafka_bootstrap_servers: str = "localhost:9092"
+    # The website reads Neon, not the local database the pipeline writes to. Neon's free plan
+    # meters compute time, and a pipeline writing every 5 minutes would keep it awake around
+    # the clock, so scripts/sync_to_neon.py copies new rows across on a schedule instead. Use
+    # Neon's DIRECT (unpooled) URL here; empty means the sync is not configured.
+    neon_direct_url: str = ""
 
     # --- App ---
     environment: str = "development"

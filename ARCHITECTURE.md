@@ -905,9 +905,10 @@ README.md             documents the public/private data split explicitly for any
    Grafana dashboards): Next.js (App Router, TypeScript) in `frontend/`, deployed to Vercel,
    reading Postgres directly via parameterized SQL in TypeScript query functions (Route
    Handlers as serverless functions) -- the same "reads Postgres directly" pattern Grafana
-   already used, not a new API layer. Database is Neon (serverless Postgres, free tier),
-   which the real ingestion pipeline's pollers/consumers/inference services are repointed
-   at; the historical data was migrated over via `pg_dump`/restore, not re-backfilled.
+   already used, not a new API layer. The website reads Neon (serverless Postgres, free
+   tier). The pipeline does NOT write to Neon: it keeps writing to the local Postgres, and an
+   hourly sync copies new rows across (see "Neon sync" below). The historical data was
+   loaded into Neon once via `pg_dump`/restore, not re-backfilled.
    Charts are the project's own hand-rolled SVG renderer (already used in the case-study
    page), ported into React components -- no new charting dependency.
 
@@ -938,6 +939,24 @@ README.md             documents the public/private data split explicitly for any
    abandoned stay on the map, marked as ended. Quoted sources on the site go through one
    registry (`frontend/src/lib/sources.ts`) rendered as numbered citations and a generated
    reference list.
+
+   **Neon sync (2026-10-15).** Pointing the pipeline straight at Neon was the original plan
+   and was rejected after checking Neon's free-plan limits: 100 compute-hours per project per
+   month, with compute suspending after 5 idle minutes. A pipeline that writes every 5
+   minutes never lets Neon suspend, which is roughly 180 compute-hours a month, and when the
+   allowance runs out Neon suspends and the site and the pipeline both stop. Instead,
+   `scripts/sync_to_neon.py` (logic in `common/neon_sync.py`) runs hourly from a Windows
+   scheduled task (`pa-grid-monitor-neon-sync`), so Neon sleeps between runs. Each run
+   streams rows newer than Neon's newest timestamp (minus a 6-hour overlap, so revised or
+   late rows are caught) into a temporary table and upserts them on the primary key, writing
+   only rows whose values changed. A re-run is therefore harmless, and `--full` resends
+   everything after a long outage. It reads `POSTGRES_DSN` (local) and `NEON_DIRECT_URL`
+   (Neon's direct, unpooled URL), refuses a pooled URL, and applies any new migration to
+   Neon first. The cost is that the website lags the pipeline by up to an hour. The website
+   itself uses Neon's pooled URL, with prepared statements switched off for pooled URLs.
+   Limits: the scheduled task only runs while this machine is on and signed in, and the
+   pipeline processes themselves are started by hand, so after a restart Neon goes stale until
+   both are running again.
 
 ## 10. Steps to complete before building starts
 
