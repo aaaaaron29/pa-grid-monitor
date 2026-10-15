@@ -8,6 +8,8 @@
 export type ZoneName = "PECO" | "PPL" | "METED" | "PENELEC" | "DUQ";
 
 export const PA_VIEWBOX = { w: 1000, h: 579.5 };
+/** Map units in one statute mile (used to draw distance rings). */
+export const PA_UNITS_PER_MILE = 3.2912;
 
 export interface PaCounty {
   fips: string;

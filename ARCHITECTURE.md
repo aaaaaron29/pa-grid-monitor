@@ -940,6 +940,29 @@ README.md             documents the public/private data split explicitly for any
    registry (`frontend/src/lib/sources.ts`) rendered as numbered citations and a generated
    reference list.
 
+   **Map status, nearby people and plants (2026-10-15).** Each project has a status category
+   (announced, under local review, approved for a first phase, under construction, rejected
+   locally, abandoned), drawn as a distinct marker shape as well as a color, and filterable
+   with chips that show counts. The `ended` flag is now derived from the abandoned category.
+   For projects placed at a specific site (`precision: "site"`), `scripts/map/exposure.py`
+   counts people and homes within 0.5, 1, 2 and 5 miles from 2020 Census PL 94-171 block
+   files (keyless bulk download, cached under `scripts/map/.cache/`, with each state's block
+   sum checked against its state total), loads neighboring states only when a 5-mile circle
+   crosses the line, and lists schools, hospitals, nursing homes and child care within a mile
+   from HIFLD layers on PASDA. Blocks are assigned by internal point, so counts near a ring
+   edge are approximate, and Census disclosure avoidance adds noise to small blocks.
+   Municipality-level projects show "not measured" rather than a guessed number. The panel
+   states that proximity is not impact, and there is deliberately no risk score. Two projects
+   (York 2, Aligned Shippingport) carry `locateAtPlant` and are pinned to the named plant
+   from the HIFLD plant layer. The optional plant layer shows operating plants of 100 MW or
+   more, and each measured project lists its nearest one. The local response notes are
+   written only from sources actually read, each with a link and date. Search, status filters
+   and the selected project are kept in the URL (`project`, `status`, `q`), read after
+   hydration so the prerendered page is identical for everyone, and a sortable table below
+   the map shares the same filters. With rings on, the map zooms to a window around the
+   project so the 1 and 5 mile rings are legible. Not covered: planned housing, noise, water
+   or emissions modeling, and projects not yet found in reporting.
+
    **Neon sync (2026-10-15).** Pointing the pipeline straight at Neon was the original plan
    and was rejected after checking Neon's free-plan limits: 100 compute-hours per project per
    month, with compute suspending after 5 idle minutes. A pipeline that writes every 5
