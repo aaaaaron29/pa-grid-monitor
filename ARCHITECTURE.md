@@ -216,7 +216,7 @@ The project claims what it actually does. See Section 3.
   launch is routine in busy regions and can persist for days. This is the single most
   common way Oracle Always Free fails people. Mitigate by retrying the launch on a loop
   (OCI CLI from a cron) and staying flexible across availability domains. Crucially, **this
-  blocks only Phase 5**: Phases 1–4 run on a local k3d/kind cluster, so capacity trouble
+  blocks only Phase 5**: Phases 1–4 run on a local `kind` cluster, so capacity trouble
   delays deployment without ever blocking development. See "Local fallback" in Section 5.
 - **EIA-930 historical depth is confirmed sufficient for a time-based split:** most fields go
   back to July 2015 (sub-regional demand and generation-by-source specifically back to July
@@ -327,7 +327,7 @@ ingest staleness (see Section 7).
 
 **Both tiers run on the Oracle VM.** Nothing in this system is permanently hosted on a
 personal machine: the VM is always-on, and a laptop being asleep must never create a gap in
-collection. Docker Compose (or k3d) reproduces the stack locally for development only.
+collection. Docker Compose reproduces the stack locally for development only.
 
 ### Always-on vs scheduled workloads
 
@@ -356,8 +356,12 @@ A1 capacity shortages and instance reclamation are both real (Section 3), so the
 never depend on the VM existing:
 
 - **Phases 1–4 need no cloud at all.** Docker Compose covers day-to-day development, and a
-  local **k3d/kind** cluster validates the actual Kubernetes manifests, meaning Phase 5
+  local **`kind`** cluster validates the actual Kubernetes manifests, meaning Phase 5
   becomes "apply known-good manifests to a different cluster" rather than a first attempt.
+  Chosen over k3d/minikube specifically so local validation uses the same tool as CI
+  (Section 7, Phase 5) instead of a third variant that could behave differently; k3d would
+  arguably mirror the Oracle VM's real k3s more closely, but matching CI avoids
+  works-locally-fails-in-CI drift, and CI already proved this choice works.
 - **For demoing without a public IP**, a Cloudflare Tunnel (or Tailscale Funnel) exposes a
   local Grafana over HTTPS on a real hostname. Good for a live interview demo; not a
   substitute for 24/7 hosting, since it's only up while the machine is.
@@ -863,7 +867,7 @@ README.md             documents the public/private data split explicitly for any
    async scrape/provisioning cycles (fixed by retrying each check independently); and
    Grafana's datasource health endpoint being UID-based (`/api/datasources/uid/:uid/health`),
    not the ID-based path first assumed.
-5. **Deploy**: write the Kubernetes manifests and validate them on a **local k3d/kind
+5. **Deploy**: write the Kubernetes manifests and validate them on a **local `kind`
    cluster first**, so the Oracle deploy is "apply known-good manifests" rather than a first
    attempt (and so an A1 capacity shortage delays nothing). Then Oracle Cloud VM + k3s, live
    24/7. Reserve the Oracle Public IP, point a free subdomain at it, wire up Traefik/cert-manager for Let's Encrypt
