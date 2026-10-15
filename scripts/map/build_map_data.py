@@ -8,22 +8,35 @@ Inputs
   - Utility territories: HIFLD Electric Retail Service Territories, served by PASDA (Penn State).
   - Projects: scripts/map/data_centers.json, hand-edited. This is the source of truth for the
     data center list; edit it, then rerun this script.
+  - Who and what is nearby (see exposure.py): 2020 Census block population and housing for
+    Pennsylvania and any neighboring state a site's 5-mile circle reaches (about 150 MB of
+    downloads on the first run, cached in scripts/map/.cache), plus the federal HIFLD layers
+    for schools, hospitals, nursing homes, child-care centers, and power plants.
 
 Outputs (overwritten)
   - frontend/src/data/paGeo.ts         projected, simplified county and territory paths
-  - frontend/src/data/dataCenters.ts   projects, each with its county and utility computed
-                                       by point-in-polygon
+  - frontend/src/data/dataCenters.ts   projects, each with its county, utility, nearby people
+                                       and places, and nearest power plant
+  - frontend/src/data/powerPlants.ts   operating plants of 100 MW or more, for the map layer
 
-Everything here is public geography and public reporting. No PJM Data Miner data is read or
-written, which is why the public /map route may import these files (see ARCHITECTURE.md).
+Everything here is public geography, public statistics, and public reporting. No PJM Data
+Miner data is read or written, which is why the public /map route may import these files (see
+ARCHITECTURE.md).
 """
 import json
 import math
 import os
+import sys
 import urllib.parse
 import urllib.request
+from pathlib import Path
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+import exposure  # noqa: E402
+
+CACHE_DIR = Path(HERE) / ".cache"
+STATUS_CATEGORIES = ("announced", "review", "approved", "construction", "rejected", "abandoned")
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 OUT = os.path.join(REPO, "frontend", "src", "data")
 
@@ -85,7 +98,10 @@ DC_HEADER = """\
 // Curated from public reporting, one entry per project, each with the sources it was read from.
 // This is NOT a complete registry: no authoritative public dataset exists yet. Locations are
 // approximate (named site, or municipality), and the county and utility fields were computed
-// by point-in-polygon against the geometry in paGeo.ts. Nothing here is PJM Data Miner data.
+// by point-in-polygon against the geometry in paGeo.ts. The nearby-people, nearby-places and
+// nearest-plant fields come from the 2020 Census and the federal HIFLD layers and are measured
+// from the map marker, not the property line. They describe proximity, not impact. Nothing
+// here is PJM Data Miner data.
 
 export interface DataCenterFigure {
   label: string;
@@ -98,6 +114,44 @@ export interface DataCenterSource {
   url: string;
 }
 
+export type StatusCategory =
+  | "announced"
+  | "review"
+  | "approved"
+  | "construction"
+  | "rejected"
+  | "abandoned";
+
+/** One thing local reporting says about how the community or its officials responded. */
+export interface LocalResponse {
+  text: string;
+  source: DataCenterSource;
+  asOf: string;
+}
+
+/** People and homes within each radius of the marker (2020 Census), and the nearest homes. */
+export interface Exposure {
+  radiiMiles: number[];
+  people: number[];
+  homes: number[];
+  nearestHomesMiles: number | null;
+  /** States whose Census files were included (a site near a border counts people across it). */
+  states: string[];
+}
+
+export interface NearbyPlace {
+  kind: "School" | "Hospital" | "Nursing home" | "Child care";
+  name: string;
+  miles: number;
+}
+
+export interface NearestPlant {
+  name: string;
+  fuel: string;
+  mw: number | null;
+  miles: number;
+}
+
 export interface DataCenter {
   id: string;
   name: string;
@@ -105,7 +159,8 @@ export interface DataCenter {
   place: string;
   /** "site": at or near a named site. "municipality": within the township, borough or city. */
   precision: "site" | "municipality";
-  /** True once the project was denied or abandoned. */
+  statusCategory: StatusCategory;
+  /** True once the project was abandoned. */
   ended: boolean;
   county: string | null;
   countyFips: string | null;
@@ -114,10 +169,18 @@ export interface DataCenter {
   y: number;
   lat: number;
   lon: number;
+  /** Set when the marker was pinned to a known power plant's coordinates. */
+  locatedBy: string | null;
   status: string;
   asOf: string;
   summary: string;
   figures: DataCenterFigure[];
+  /** Null when the site is only located to a municipality, which is too coarse to measure from. */
+  exposure: Exposure | null;
+  /** Schools, hospitals, nursing homes, child care within a mile; null if not measured. */
+  places: NearbyPlace[] | null;
+  nearestPlant: NearestPlant | null;
+  community: LocalResponse[];
   sources: DataCenterSource[];
 }
 
@@ -279,15 +342,75 @@ def main():
             }
         )
 
+    # A county's bounding box is checked first so "is this point in Pennsylvania?" stays cheap
+    # when it is asked hundreds of times below.
+    county_boxes = []
+    for f in counties:
+        pts = [pt for poly in polys(f["geometry"]) for ring in poly for pt in ring]
+        county_boxes.append(
+            (
+                min(p[0] for p in pts),
+                max(p[0] for p in pts),
+                min(p[1] for p in pts),
+                max(p[1] for p in pts),
+                f,
+            )
+        )
+
+    def in_pennsylvania(lat, lon):
+        return any(
+            w <= lon <= e and s <= lat <= n and inside(lon, lat, f["geometry"])
+            for w, e, s, n, f in county_boxes
+        )
+
+    plants = exposure.power_plants()
+    plants_by_raw_name = {p["rawName"]: p for p in plants}
+    big_plants = exposure.operating_plants(plants, min_mw=100)
+    print(f"power plants: {len(plants)} in HIFLD, {len(big_plants)} operating at 100 MW or more")
+
+    blocks_by_state: dict[str, list] = {}
+
+    def blocks_for(states):
+        merged = []
+        for abbr in states:
+            if abbr not in blocks_by_state:
+                print(f"  loading Census blocks for {abbr} ...")
+                blocks_by_state[abbr] = exposure.load_blocks(abbr, CACHE_DIR)
+            merged.extend(blocks_by_state[abbr])
+        return merged
+
     dc_rows = []
     for p in projects["projects"]:
-        county = next((f for f in counties if inside(p["lon"], p["lat"], f["geometry"])), None)
-        utility = next(
-            (uid for uid in util_geoms if inside(p["lon"], p["lat"], util_geoms[uid])), None
-        )
-        x, y = proj(p["lon"], p["lat"])
+        if p["statusCategory"] not in STATUS_CATEGORIES:
+            raise SystemExit(f"{p['id']}: unknown statusCategory {p['statusCategory']!r}")
+        lat, lon, located_by = p["lat"], p["lon"], None
+        if p.get("locateAtPlant"):
+            plant = plants_by_raw_name.get(p["locateAtPlant"])
+            if plant is None:
+                raise SystemExit(f"{p['id']}: no HIFLD plant named {p['locateAtPlant']!r}")
+            lat, lon = plant["lat"], plant["lon"]
+            located_by = f"Placed at the {plant['name']} plant site (federal HIFLD plant layer)"
+        county = next((f for f in counties if inside(lon, lat, f["geometry"])), None)
+        utility = next((uid for uid in util_geoms if inside(lon, lat, util_geoms[uid])), None)
+        x, y = proj(lon, lat)
         county_name = county["properties"]["NAME"] if county else None
-        print(f"{p['id']:22s} county={county_name!s:12s} utility={utility}")
+
+        # Proximity is only worth stating when the marker is at or near the actual site.
+        exposed = places = nearest = None
+        if p["precision"] == "site":
+            states = exposure.states_needed(lat, lon, in_pennsylvania)
+            exposed = exposure.people_within(blocks_for(states), lat, lon)
+            exposed["states"] = states
+            places = exposure.nearby_places(lat, lon, miles=1.0)
+            nearest = exposure.nearest_plant(lat, lon, big_plants)
+        near_txt = "not measured (site not located precisely enough)"
+        if exposed:
+            near_txt = (
+                f"{exposed['people'][1]:,} people within 1 mi, nearest homes "
+                f"{exposed['nearestHomesMiles']} mi, {len(places)} places, "
+                f"plant {nearest['miles'] if nearest else '-'} mi"
+            )
+        print(f"{p['id']:22s} {county_name!s:11s} {utility!s:10s} {near_txt}")
         dc_rows.append(
             {
                 "id": p["id"],
@@ -295,19 +418,38 @@ def main():
                 "developer": p["developer"],
                 "place": p["place"],
                 "precision": p["precision"],
-                "ended": p["ended"],
+                "statusCategory": p["statusCategory"],
+                "ended": p["statusCategory"] == "abandoned",
                 "county": county_name,
                 "countyFips": county["id"] if county else None,
                 "utilityId": utility,
                 "x": round(x, 1),
                 "y": round(y, 1),
-                "lat": p["lat"],
-                "lon": p["lon"],
+                "lat": lat,
+                "lon": lon,
+                "locatedBy": located_by,
                 "status": p["status"],
                 "asOf": p["asOf"],
                 "summary": p["summary"],
                 "figures": p["figures"],
+                "exposure": exposed,
+                "places": places,
+                "nearestPlant": nearest,
+                "community": p["community"],
                 "sources": p["sources"],
+            }
+        )
+
+    plant_rows = []
+    for pl in sorted(big_plants, key=lambda q: -q["mw"]):
+        px, py = proj(pl["lon"], pl["lat"])
+        plant_rows.append(
+            {
+                "name": pl["name"],
+                "fuel": pl["fuel"],
+                "mw": pl["mw"],
+                "x": round(px, 1),
+                "y": round(py, 1),
             }
         )
 
@@ -319,6 +461,10 @@ def main():
     with open(os.path.join(OUT, "paGeo.ts"), "w", encoding="utf8", newline="\n") as fh:
         fh.write(GEO_HEADER)
         fh.write(f"export const PA_VIEWBOX = {{ w: {W:.0f}, h: {H} }};\n")
+        fh.write("/** Map units in one statute mile (used to draw distance rings). */\n")
+        fh.write(
+            f"export const PA_UNITS_PER_MILE = {scale / exposure.MILES_PER_DEGREE_LAT:.4f};\n"
+        )
         fh.write(GEO_TYPES)
         fh.write(f"export const PA_COUNTIES: PaCounty[] = {js(county_rows)};\n\n")
         fh.write(f"export const PA_UTILITIES: PaUtility[] = {js(util_rows)};\n")
@@ -327,6 +473,18 @@ def main():
         fh.write(DC_HEADER)
         fh.write(f'export const DATA_CENTERS_REVIEWED = "{projects["reviewed"]}";\n\n')
         fh.write(f"export const DATA_CENTERS: DataCenter[] = {js(dc_rows)};\n")
+
+    with open(os.path.join(OUT, "powerPlants.ts"), "w", encoding="utf8", newline="\n") as fh:
+        fh.write(
+            "// Generated by scripts/map/build_map_data.py from the federal HIFLD power plant\n"
+            "// layer (served by Penn State's PASDA): operating Pennsylvania plants of 100 MW or\n"
+            "// more by summer capacity. HIFLD's plant status and capacities can lag reality (a\n"
+            "// plant that has closed may still be listed as operating), so treat this as a\n"
+            "// reference layer. Public data, not PJM Data Miner data.\n\n"
+            "export interface PowerPlant {\n  name: string;\n  fuel: string;\n  mw: number;\n"
+            "  x: number;\n  y: number;\n}\n\n"
+        )
+        fh.write(f"export const POWER_PLANTS: PowerPlant[] = {js(plant_rows)};\n")
 
     print(
         f"viewBox {W:.0f} x {H}; counties {len(county_rows)}; "

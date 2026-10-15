@@ -18,3 +18,6 @@ dist/
 .pytest_cache/
 .ruff_cache/
 artifacts/
+
+# map build cache: Census downloads (scripts/map/build_map_data.py)
+scripts/map/.cache/

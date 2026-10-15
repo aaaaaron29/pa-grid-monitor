@@ -9,17 +9,32 @@
       "precision": "site",
       "lat": 41.092,
       "lon": -76.149,
-      "ended": false,
+      "statusCategory": "announced",
       "status": "Announced June 2025. No later construction or regulatory update was found in this review.",
       "asOf": "June 2025 reporting",
       "summary": "One of two Pennsylvania campuses Amazon announced as part of a planned investment of more than $20 billion, next to Talen Energy's Susquehanna nuclear plant, where Talen sold a data center campus to Amazon for $650 million. FERC rejected an amended interconnection agreement for expanded co-located load. Talen then announced a power purchase agreement with AWS that moves the existing 300 MW co-located arrangement to a front-of-the-meter framework.",
       "figures": [
-        { "label": "Power purchase agreement", "value": "1,920 MW", "note": "840 to 1,200 MW in 2029, rising to 1,680 to 1,920 MW in 2032" },
-        { "label": "Planned investment", "value": "$20B+", "note": "Across Amazon's two PA campuses" }
+        {
+          "label": "Power purchase agreement",
+          "value": "1,920 MW",
+          "note": "840 to 1,200 MW in 2029, rising to 1,680 to 1,920 MW in 2032"
+        },
+        {
+          "label": "Planned investment",
+          "value": "$20B+",
+          "note": "Across Amazon's two PA campuses"
+        }
       ],
+      "community": [],
       "sources": [
-        { "label": "Utility Dive, June 2025", "url": "https://www.utilitydive.com/news/talen-amazon-aws-susquehanna-nuclear-data-center-t/750440/" },
-        { "label": "PhillyVoice, June 2025", "url": "https://www.phillyvoice.com/amazon-data-centers-pennsylvania-bucks-luzerne-county/" }
+        {
+          "label": "Utility Dive, June 2025",
+          "url": "https://www.utilitydive.com/news/talen-amazon-aws-susquehanna-nuclear-data-center-t/750440/"
+        },
+        {
+          "label": "PhillyVoice, June 2025",
+          "url": "https://www.phillyvoice.com/amazon-data-centers-pennsylvania-bucks-luzerne-county/"
+        }
       ]
     },
     {
@@ -30,17 +45,41 @@
       "precision": "site",
       "lat": 40.155,
       "lon": -74.7469,
-      "ended": false,
+      "statusCategory": "announced",
       "status": "Planned. A PECO transmission service agreement with Amazon was before FERC as of October 2025. No later reporting was found in this review.",
       "asOf": "October 2025 reporting",
       "summary": "The second of Amazon's two announced Pennsylvania campuses, on the Keystone Trade Center, a former U.S. Steel property of about 1,800 acres. Described as a roughly 2-million-square-foot digital infrastructure campus. PJM's market monitor asked FERC to reject the PECO agreement.",
       "figures": [
-        { "label": "Building size", "value": "2M sq ft", "note": "Roughly" },
-        { "label": "Power", "value": "Not reported", "note": "No MW figure in the sources read" }
+        {
+          "label": "Building size",
+          "value": "2M sq ft",
+          "note": "Roughly"
+        },
+        {
+          "label": "Power",
+          "value": "Not reported",
+          "note": "No MW figure in the sources read"
+        }
+      ],
+      "community": [
+        {
+          "text": "Whether other customers bear the cost is contested before FERC: PJM's independent market monitor asked FERC to reject the PECO agreement, and PECO says its terms protect customers in Southeastern Pennsylvania from bearing greater transmission costs.",
+          "source": {
+            "label": "Philadelphia Inquirer, Oct 2025",
+            "url": "https://www.inquirer.com/business/energy/monitor-questions-amazon-peco-data-center-agreement-20251023.html"
+          },
+          "asOf": "Oct 2025"
+        }
       ],
       "sources": [
-        { "label": "Philadelphia Inquirer, Oct 2025", "url": "https://www.inquirer.com/business/energy/monitor-questions-amazon-peco-data-center-agreement-20251023.html" },
-        { "label": "PhillyVoice, June 2025", "url": "https://www.phillyvoice.com/amazon-data-centers-pennsylvania-bucks-luzerne-county/" }
+        {
+          "label": "Philadelphia Inquirer, Oct 2025",
+          "url": "https://www.inquirer.com/business/energy/monitor-questions-amazon-peco-data-center-agreement-20251023.html"
+        },
+        {
+          "label": "PhillyVoice, June 2025",
+          "url": "https://www.phillyvoice.com/amazon-data-centers-pennsylvania-bucks-luzerne-county/"
+        }
       ]
     },
     {
@@ -51,18 +90,46 @@
       "precision": "site",
       "lat": 40.5139,
       "lon": -79.1958,
-      "ended": false,
+      "statusCategory": "review",
       "status": "Announced April 2025, with power targeted for 2027. In August 2026 Amazon Data Services filed a land development plan; county planners tabled it on September 9 after more than 100 residents attended.",
       "asOf": "October 2026 reporting",
       "summary": "Redevelopment of the former Homer City coal station into a natural-gas-powered data center campus of more than 3,200 acres, with seven GE Vernova gas turbines. The August filing covers 36 data center buildings on about 1,100 of roughly 2,200 acres, and names AWS as the anticipated end user, though Amazon had said it had no definitive agreement.",
       "figures": [
-        { "label": "Generation", "value": "Up to 4.5 GW", "note": "Combined-cycle plant, as planned" },
-        { "label": "AWS filing", "value": "36 buildings", "note": "Phased through about 2036" },
-        { "label": "Initial investment", "value": "$10B+", "note": "Projected at announcement" }
+        {
+          "label": "Generation",
+          "value": "Up to 4.5 GW",
+          "note": "Combined-cycle plant, as planned"
+        },
+        {
+          "label": "AWS filing",
+          "value": "36 buildings",
+          "note": "Phased through about 2036"
+        },
+        {
+          "label": "Initial investment",
+          "value": "$10B+",
+          "note": "Projected at announcement"
+        }
+      ],
+      "community": [
+        {
+          "text": "More than 100 residents attended the September 9 county planning commission meeting, and commissioners tabled Amazon's application.",
+          "source": {
+            "label": "Baxtel, Oct 2026",
+            "url": "https://baxtel.com/news/aws-files-36-building-data-center-plan-at-4-5gw-homer-city-campus"
+          },
+          "asOf": "Oct 2026"
+        }
       ],
       "sources": [
-        { "label": "Baxtel, Oct 2026", "url": "https://baxtel.com/news/aws-files-36-building-data-center-plan-at-4-5gw-homer-city-campus" },
-        { "label": "American Public Power Association, Apr 2025", "url": "https://www.publicpower.org/periodical/article/companies-unveil-largest-natural-gas-powered-data-center-campus-us" }
+        {
+          "label": "Baxtel, Oct 2026",
+          "url": "https://baxtel.com/news/aws-files-36-building-data-center-plan-at-4-5gw-homer-city-campus"
+        },
+        {
+          "label": "American Public Power Association, Apr 2025",
+          "url": "https://www.publicpower.org/periodical/article/companies-unveil-largest-natural-gas-powered-data-center-campus-us"
+        }
       ]
     },
     {
@@ -73,17 +140,32 @@
       "precision": "site",
       "lat": 40.0472,
       "lon": -76.2555,
-      "ended": false,
+      "statusCategory": "announced",
       "status": "Announced July 2025. No later construction or approval reporting was found in this review.",
       "asOf": "July 2025 announcement",
       "summary": "CoreWeave said it intends to commit more than $6 billion to equip a new data center on 144 acres at 216 Greenfield Road and 1375 Harrisburg Pike, replacing the former LSC Communications and R.R. Donnelley printing plants. Co-developed by Chirisa Technology Parks and Machine Investment Group.",
       "figures": [
-        { "label": "Initial capacity", "value": "100 MW", "note": "Potential to expand to 300 MW" },
-        { "label": "Commitment", "value": "$6B+", "note": "Intent to equip the site" }
+        {
+          "label": "Initial capacity",
+          "value": "100 MW",
+          "note": "Potential to expand to 300 MW"
+        },
+        {
+          "label": "Commitment",
+          "value": "$6B+",
+          "note": "Intent to equip the site"
+        }
       ],
+      "community": [],
       "sources": [
-        { "label": "REBusiness, July 2025", "url": "https://rebusinessonline.com/coreweave-to-invest-6b-for-ai-based-data-center-in-lancaster-pennsylvania/" },
-        { "label": "CoreWeave", "url": "https://wf.coreweave.com/news/coreweave-announces-multi-billion-dollar-commitment-to-ai-infrastructure-in-pennsylvania" }
+        {
+          "label": "REBusiness, July 2025",
+          "url": "https://rebusinessonline.com/coreweave-to-invest-6b-for-ai-based-data-center-in-lancaster-pennsylvania/"
+        },
+        {
+          "label": "CoreWeave",
+          "url": "https://wf.coreweave.com/news/coreweave-announces-multi-billion-dollar-commitment-to-ai-infrastructure-in-pennsylvania"
+        }
       ]
     },
     {
@@ -94,19 +176,66 @@
       "precision": "site",
       "lat": 40.947,
       "lon": -76.0488,
-      "ended": false,
+      "statusCategory": "rejected",
       "status": "Rejected by the township in November 2025. NorthPoint's court appeal failed, and the township adopted a six-month moratorium on data center applications that ends in January 2027. The developer is still seeking approval.",
       "asOf": "September 2026 reporting",
       "summary": "A proposed campus of up to 15 buildings on about 1,300 acres in the Humboldt North Industrial Park. NorthPoint has offered $10,000 to each of about 4,500 households if township leaders approve the project. Pennsylvania DEP held a public hearing in February 2026 on related stormwater permits.",
       "figures": [
-        { "label": "Site", "value": "~1,300 acres", "note": "Up to 15 buildings" },
-        { "label": "Household offer", "value": "$10,000", "note": "To about 4,500 households, if approved" },
-        { "label": "Power", "value": "Not reported", "note": "No MW figure in the sources read" }
+        {
+          "label": "Site",
+          "value": "~1,300 acres",
+          "note": "Up to 15 buildings"
+        },
+        {
+          "label": "Household offer",
+          "value": "$10,000",
+          "note": "To about 4,500 households, if approved"
+        },
+        {
+          "label": "Power",
+          "value": "Not reported",
+          "note": "No MW figure in the sources read"
+        }
+      ],
+      "community": [
+        {
+          "text": "One resident told the Wall Street Journal that a $10,000 payment \"doesn't match how much it's going to tank my property value,\" as quoted by PhillyVoice.",
+          "source": {
+            "label": "PhillyVoice, Sept 2026",
+            "url": "https://www.phillyvoice.com/data-centers-pennsylvania-poconos-payments-northpoint/"
+          },
+          "asOf": "Sep 2026"
+        },
+        {
+          "text": "NorthPoint offered each of about 4,500 households $10,000 (about $45 million in total) if the project is approved, and offered the township $120 million over 15 years for police and other services.",
+          "source": {
+            "label": "PhillyVoice, Sept 2026",
+            "url": "https://www.phillyvoice.com/data-centers-pennsylvania-poconos-payments-northpoint/"
+          },
+          "asOf": "Sep 2026"
+        },
+        {
+          "text": "Pennsylvania DEP held a public meeting and hearing on the project's stormwater permits on February 17, 2026.",
+          "source": {
+            "label": "PA DEP hearing notice, Feb 2026",
+            "url": "https://www.pa.gov/agencies/dep/newsroom/2026-02-12-dep-to-host-public-meeting-and-hearing-for-project-hazlenut-data-center-luzerne-county"
+          },
+          "asOf": "Feb 2026"
+        }
       ],
       "sources": [
-        { "label": "PhillyVoice, Sept 2026", "url": "https://www.phillyvoice.com/data-centers-pennsylvania-poconos-payments-northpoint/" },
-        { "label": "Baxtel, Jan 2025", "url": "https://baxtel.com/news/northpoint-proposes-15-building-data-center-campus-in-pennsylvania" },
-        { "label": "PA DEP hearing notice, Feb 2026", "url": "https://www.pa.gov/agencies/dep/newsroom/2026-02-12-dep-to-host-public-meeting-and-hearing-for-project-hazlenut-data-center-luzerne-county" }
+        {
+          "label": "PhillyVoice, Sept 2026",
+          "url": "https://www.phillyvoice.com/data-centers-pennsylvania-poconos-payments-northpoint/"
+        },
+        {
+          "label": "Baxtel, Jan 2025",
+          "url": "https://baxtel.com/news/northpoint-proposes-15-building-data-center-campus-in-pennsylvania"
+        },
+        {
+          "label": "PA DEP hearing notice, Feb 2026",
+          "url": "https://www.pa.gov/agencies/dep/newsroom/2026-02-12-dep-to-host-public-meeting-and-hearing-for-project-hazlenut-data-center-luzerne-county"
+        }
       ]
     },
     {
@@ -117,17 +246,41 @@
       "precision": "municipality",
       "lat": 40.2489,
       "lon": -77.1378,
-      "ended": false,
+      "statusCategory": "construction",
       "status": "Listed as under construction by the developer, with power delivery targeted from Q4 2027.",
       "asOf": "Developer website, October 2026",
       "summary": "Three campuses of five to six buildings each, 16 in total, on about 700 acres, with three dedicated substations. The developer lists a planned PPL switching station stepping power from 500 kV to 138 kV. Power is scheduled in stages: 450 MW in Q4 2027, 900 MW in Q2 2028, and 1,350 MW in Q2 2029.",
       "figures": [
-        { "label": "Capacity", "value": "1.35 GW", "note": "Expandable to 1.8 GW" },
-        { "label": "Investment", "value": "$15B", "note": "Company figure, July 2025 release" }
+        {
+          "label": "Capacity",
+          "value": "1.35 GW",
+          "note": "Expandable to 1.8 GW"
+        },
+        {
+          "label": "Investment",
+          "value": "$15B",
+          "note": "Company figure, July 2025 release"
+        }
+      ],
+      "community": [
+        {
+          "text": "The developer says the project will generate more than $65 million in direct tax revenue, and notes Pennsylvania's data center tax exemption, which it describes as a 100% abatement of sales and use taxes on equipment and electricity for up to 15 years. (Company claim.)",
+          "source": {
+            "label": "Company release via GlobeNewswire, July 2025",
+            "url": "https://markets.financialcontent.com/wral/article/gnwcq-2025-7-15-pennsylvania-data-center-partners-and-powerhouse-data-centers-launch-joint-venture-to-build-next-gen-135-gw-hyperscale-data-center-campus-in-carlisle-pennsylvania"
+          },
+          "asOf": "Jul 2025"
+        }
       ],
       "sources": [
-        { "label": "Developer site, PA Data Centers", "url": "https://www.padatacenters.com/campus" },
-        { "label": "Company release via GlobeNewswire, July 2025", "url": "https://markets.financialcontent.com/wral/article/gnwcq-2025-7-15-pennsylvania-data-center-partners-and-powerhouse-data-centers-launch-joint-venture-to-build-next-gen-135-gw-hyperscale-data-center-campus-in-carlisle-pennsylvania" }
+        {
+          "label": "Developer site, PA Data Centers",
+          "url": "https://www.padatacenters.com/campus"
+        },
+        {
+          "label": "Company release via GlobeNewswire, July 2025",
+          "url": "https://markets.financialcontent.com/wral/article/gnwcq-2025-7-15-pennsylvania-data-center-partners-and-powerhouse-data-centers-launch-joint-venture-to-build-next-gen-135-gw-hyperscale-data-center-campus-in-carlisle-pennsylvania"
+        }
       ]
     },
     {
@@ -135,19 +288,32 @@
       "name": "York 2 Energy Center data center",
       "developer": "Energy Capital Partners (parent of Calpine)",
       "place": "Peach Bottom Township, York County",
-      "precision": "municipality",
+      "precision": "site",
       "lat": 39.7558,
       "lon": -76.302,
-      "ended": false,
+      "locateAtPlant": "YORK ENERGY CENTER",
+      "statusCategory": "announced",
       "status": "Planned. Announced July 2025. No approval or construction reporting was found in this review.",
       "asOf": "July 2025 reporting",
       "summary": "Energy Capital Partners announced plans for a $5 billion data center at the York 2 Energy Center, an existing 828 MW dual-fuel combined-cycle gas plant. The article gives no capacity for the data center itself and expects 2,500 construction jobs.",
       "figures": [
-        { "label": "Investment", "value": "$5B", "note": "Announced" },
-        { "label": "Existing plant", "value": "828 MW", "note": "Gas plant, not data center capacity" }
+        {
+          "label": "Investment",
+          "value": "$5B",
+          "note": "Announced"
+        },
+        {
+          "label": "Existing plant",
+          "value": "828 MW",
+          "note": "Gas plant, not data center capacity"
+        }
       ],
+      "community": [],
       "sources": [
-        { "label": "Central Penn Business Journal, July 2025", "url": "https://www.cpbj.com/5b-data-center-coming-to-york-county-energy-site/" }
+        {
+          "label": "Central Penn Business Journal, July 2025",
+          "url": "https://www.cpbj.com/5b-data-center-coming-to-york-county-energy-site/"
+        }
       ]
     },
     {
@@ -158,17 +324,32 @@
       "precision": "municipality",
       "lat": 40.57,
       "lon": -75.61,
-      "ended": true,
+      "statusCategory": "abandoned",
       "status": "Abandoned. The township zoning hearing board rejected the request in July 2026, after a May 27 hearing, and Air Products said in August it would not appeal.",
       "asOf": "August 2026 reporting",
       "summary": "Air Products proposed three data center buildings totaling about 2.6 million square feet on its 194-acre former headquarters site, along Hamilton Boulevard and Cetronia Road. The company said no decisions have been made on the property's future.",
       "figures": [
-        { "label": "Building size", "value": "2.6M sq ft", "note": "Three buildings proposed" },
-        { "label": "Site", "value": "194 acres", "note": "" }
+        {
+          "label": "Building size",
+          "value": "2.6M sq ft",
+          "note": "Three buildings proposed"
+        },
+        {
+          "label": "Site",
+          "value": "194 acres",
+          "note": ""
+        }
       ],
+      "community": [],
       "sources": [
-        { "label": "Lehigh Valley Public Media, Aug 2026", "url": "https://www.lehighvalleypublicmedia.org/news/all/air-products-abandons-plan-for-data-center-at-former-upper-macungie-headquarters/" },
-        { "label": "Lehigh Valley News, Feb 2026", "url": "https://cms.lehighvalleynews.com/business/as-data-center-boom-approaches-lehigh-valley-officials-working-to-prepare" }
+        {
+          "label": "Lehigh Valley Public Media, Aug 2026",
+          "url": "https://www.lehighvalleypublicmedia.org/news/all/air-products-abandons-plan-for-data-center-at-former-upper-macungie-headquarters/"
+        },
+        {
+          "label": "Lehigh Valley News, Feb 2026",
+          "url": "https://cms.lehighvalleynews.com/business/as-data-center-boom-approaches-lehigh-valley-officials-working-to-prepare"
+        }
       ]
     },
     {
@@ -179,16 +360,37 @@
       "precision": "site",
       "lat": 40.64,
       "lon": -75.552,
-      "ended": false,
+      "statusCategory": "review",
       "status": "Under township review. The zoning officer recommended denial in June 2026 on grounds of non-compliance. The outcome of the June 11 planning commission review was not found.",
       "asOf": "June 2026 reporting",
       "summary": "A 410-acre campus on North Cedar Crest Boulevard, across from Parkland High School. The developer cut the plan from six buildings and about 5.0 million square feet to three data center buildings, one administration building and one warehouse, totaling about 1.56 million square feet.",
       "figures": [
-        { "label": "Building size", "value": "1.56M sq ft", "note": "Down from 5.04M in the original plan" },
-        { "label": "Site", "value": "410 acres", "note": "Three parcels" }
+        {
+          "label": "Building size",
+          "value": "1.56M sq ft",
+          "note": "Down from 5.04M in the original plan"
+        },
+        {
+          "label": "Site",
+          "value": "410 acres",
+          "note": "Three parcels"
+        }
+      ],
+      "community": [
+        {
+          "text": "The township's zoning officer recommended denial of the latest plan on grounds of non-compliance.",
+          "source": {
+            "label": "WFMZ, June 2026",
+            "url": "https://www.wfmz.com/news/local_government/zoning_planning/ahead-of-key-meeting-on-south-whitehall-data-center-plans-township-identifies-long-list-of/article_cd5d695d-8a76-497e-9305-c653e2a8ca6d.html"
+          },
+          "asOf": "Jun 2026"
+        }
       ],
       "sources": [
-        { "label": "WFMZ, June 2026", "url": "https://www.wfmz.com/news/local_government/zoning_planning/ahead-of-key-meeting-on-south-whitehall-data-center-plans-township-identifies-long-list-of/article_cd5d695d-8a76-497e-9305-c653e2a8ca6d.html" }
+        {
+          "label": "WFMZ, June 2026",
+          "url": "https://www.wfmz.com/news/local_government/zoning_planning/ahead-of-key-meeting-on-south-whitehall-data-center-plans-township-identifies-long-list-of/article_cd5d695d-8a76-497e-9305-c653e2a8ca6d.html"
+        }
       ]
     },
     {
@@ -196,19 +398,32 @@
       "name": "Project Phoenix (Aligned Data Centers)",
       "developer": "Aligned Data Centers, on land owned by Frontier Group",
       "place": "Shippingport Industrial Park, Beaver County",
-      "precision": "municipality",
+      "precision": "site",
       "lat": 40.632,
       "lon": -80.414,
-      "ended": false,
+      "locateAtPlant": "FIRSTENERGY BRUCE MANSFIELD",
+      "statusCategory": "construction",
       "status": "Construction began. Groundbreaking was reported in September 2026.",
       "asOf": "September 2026 reporting",
       "summary": "A three-facility campus beside the former Shippingport power station site. It will use dedicated on-site power instead of the local grid. The site previously hosted the Bruce Mansfield coal plant, and Frontier Group plans a gas plant there.",
       "figures": [
-        { "label": "Capacity", "value": "2 GW", "note": "Three facilities" },
-        { "label": "Frontier gas plant", "value": "2.7 GW", "note": "Planned, with up to 3.6 GW behind the meter" }
+        {
+          "label": "Capacity",
+          "value": "2 GW",
+          "note": "Three facilities"
+        },
+        {
+          "label": "Frontier gas plant",
+          "value": "2.7 GW",
+          "note": "Planned, with up to 3.6 GW behind the meter"
+        }
       ],
+      "community": [],
       "sources": [
-        { "label": "Baxtel, Sept 2026", "url": "https://baxtel.com/news/aligned-begins-construction-on-gigawatt-scale-data-center-campus-in-pennsylvania" }
+        {
+          "label": "Baxtel, Sept 2026",
+          "url": "https://baxtel.com/news/aligned-begins-construction-on-gigawatt-scale-data-center-campus-in-pennsylvania"
+        }
       ]
     },
     {
@@ -219,16 +434,37 @@
       "precision": "site",
       "lat": 40.234,
       "lon": -75.574,
-      "ended": false,
+      "statusCategory": "review",
       "status": "Under local review. The planning commission attached 18 recommended conditions in April 2026, and the Board of Supervisors makes the final decision. No later outcome was found.",
       "asOf": "April 2026 reporting",
       "summary": "Eight data buildings totaling about 1.4 million square feet on roughly 192 acres across from the Philadelphia Premium Outlets, plus two administrative buildings and on-site substations. PECO has reportedly committed about 750 MW of capacity to the campus.",
       "figures": [
-        { "label": "PECO capacity", "value": "~750 MW", "note": "Reported, not confirmed by PECO in the source" },
-        { "label": "Building size", "value": "1.4M sq ft", "note": "Eight data buildings" }
+        {
+          "label": "PECO capacity",
+          "value": "~750 MW",
+          "note": "Reported, not confirmed by PECO in the source"
+        },
+        {
+          "label": "Building size",
+          "value": "1.4M sq ft",
+          "note": "Eight data buildings"
+        }
+      ],
+      "community": [
+        {
+          "text": "The planning commission recommended 18 conditions, including a pre-construction noise survey, updated water and sewer capacity letters, and a decommissioning bond, and said the project \"should not advance without a thick layer of technical and community safeguards.\"",
+          "source": {
+            "label": "Hoodline, April 2026",
+            "url": "https://hoodline.com/2026/04/limerick-planners-hit-mega-data-center-plan-with-18-demands/"
+          },
+          "asOf": "Apr 2026"
+        }
       ],
       "sources": [
-        { "label": "Hoodline, April 2026", "url": "https://hoodline.com/2026/04/limerick-planners-hit-mega-data-center-plan-with-18-demands/" }
+        {
+          "label": "Hoodline, April 2026",
+          "url": "https://hoodline.com/2026/04/limerick-planners-hit-mega-data-center-plan-with-18-demands/"
+        }
       ]
     },
     {
@@ -239,17 +475,57 @@
       "precision": "site",
       "lat": 41.498,
       "lon": -75.5831,
-      "ended": false,
+      "statusCategory": "review",
       "status": "Hearings ended September 9, 2026. Borough council said it will issue a written decision within 45 days of that hearing.",
       "asOf": "September 2026 reporting",
       "summary": "A campus of 14 buildings on more than 500 acres along Business Route 6 and Wildcat Road, with 588 proposed diesel backup generators. Residents have packed the hearings in opposition, raising water, power and diesel concerns.",
       "figures": [
-        { "label": "Site", "value": "500+ acres", "note": "14 buildings" },
-        { "label": "Backup generators", "value": "588", "note": "Diesel, as proposed" }
+        {
+          "label": "Site",
+          "value": "500+ acres",
+          "note": "14 buildings"
+        },
+        {
+          "label": "Backup generators",
+          "value": "588",
+          "note": "Diesel, as proposed"
+        }
+      ],
+      "community": [
+        {
+          "text": "More than 400 residents packed the second hearing in March 2026 and repeatedly shouted down testimony. Residents wore shirts reading \"Stop Data Centers Protect NEPA.\"",
+          "source": {
+            "label": "The Times-Tribune via Yahoo, Mar 2026",
+            "url": "https://www.yahoo.com/news/articles/wildcat-ridge-data-center-campus-222400429.html"
+          },
+          "asOf": "Mar 2026"
+        },
+        {
+          "text": "An attorney for residents raised the lack of a water feasibility study. Concerns aired included water use (about 3.3 million gallons a day at summer peak), power demand (1.6 GW) and roughly 1.15 million gallons of diesel stored on site.",
+          "source": {
+            "label": "The Times-Tribune via Yahoo, Mar 2026",
+            "url": "https://www.yahoo.com/news/articles/wildcat-ridge-data-center-campus-222400429.html"
+          },
+          "asOf": "Mar 2026"
+        },
+        {
+          "text": "The proposal includes 588 diesel backup generators. The ninth and final hearing was held September 9, and borough council said it will issue a written decision within 45 days.",
+          "source": {
+            "label": "WVIA, Sept 2026",
+            "url": "https://www.wvia.org/news/local/2026-09-10/archbald-borough-council-decides-against-recusal-listens-to-final-testimony-on-wildcat-ridge-data-center"
+          },
+          "asOf": "Sep 2026"
+        }
       ],
       "sources": [
-        { "label": "WVIA, Sept 2026", "url": "https://www.wvia.org/news/local/2026-09-10/archbald-borough-council-decides-against-recusal-listens-to-final-testimony-on-wildcat-ridge-data-center" },
-        { "label": "The Times-Tribune via Yahoo, Mar 2026", "url": "https://www.yahoo.com/news/articles/wildcat-ridge-data-center-campus-222400429.html" }
+        {
+          "label": "WVIA, Sept 2026",
+          "url": "https://www.wvia.org/news/local/2026-09-10/archbald-borough-council-decides-against-recusal-listens-to-final-testimony-on-wildcat-ridge-data-center"
+        },
+        {
+          "label": "The Times-Tribune via Yahoo, Mar 2026",
+          "url": "https://www.yahoo.com/news/articles/wildcat-ridge-data-center-campus-222400429.html"
+        }
       ]
     },
     {
@@ -260,16 +536,28 @@
       "precision": "municipality",
       "lat": 39.8142,
       "lon": -79.9465,
-      "ended": false,
+      "statusCategory": "approved",
       "status": "Approved for first-phase land development in December 2025. The developer hopes to be operating by 2029.",
       "asOf": "June 2026 reporting",
       "summary": "A planned power plant with two turbines totaling 910 MW, meant to attract a hyperscale data center, on a 1,400-acre former mine site. A regional article called it the farthest along of the projects in southwestern Pennsylvania.",
       "figures": [
-        { "label": "On-site generation", "value": "910 MW", "note": "Two turbines, to serve a data center" },
-        { "label": "Site", "value": "1,400 acres", "note": "Former mine" }
+        {
+          "label": "On-site generation",
+          "value": "910 MW",
+          "note": "Two turbines, to serve a data center"
+        },
+        {
+          "label": "Site",
+          "value": "1,400 acres",
+          "note": "Former mine"
+        }
       ],
+      "community": [],
       "sources": [
-        { "label": "Herald-Standard, June 2026", "url": "https://www.heraldstandard.com/news/local_news/2026/jun/05/data-center-town-hall-draws-large-crowd-in-fayette/" }
+        {
+          "label": "Herald-Standard, June 2026",
+          "url": "https://www.heraldstandard.com/news/local_news/2026/jun/05/data-center-town-hall-draws-large-crowd-in-fayette/"
+        }
       ]
     }
   ]
