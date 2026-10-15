@@ -19,8 +19,11 @@ the full investigation. Key findings this client is built around:
 from __future__ import annotations
 
 import logging
+import os
+import tempfile
 import time
 from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import datetime
 from typing import Any, Literal
 
@@ -46,17 +49,93 @@ _MAX_ROW_COUNT = 5000  # observed cap; same ceiling as EIA's response page size
 _MIN_SECONDS_BETWEEN_REQUESTS = 11.0
 _last_request_at: float = 0.0
 
+# The limit is per API key, not per process. The LMP poller, the load poller and any backfill
+# all share one key, and each one pacing itself in isolation still adds up to well over 6/min
+# when they run together (confirmed live 2026-10-15: both pollers started at once and tripped
+# 429s). So pacing state lives in a pair of files that every process on the host shares: an
+# OS-level lock to take turns, and the wall-clock time of the last request. Separate pods or
+# hosts sharing one key are NOT covered by this; they would need an external limiter.
+_THROTTLE_BASE = os.environ.get("PJM_THROTTLE_FILE") or os.path.join(
+    tempfile.gettempdir(), "pjm_grid_watch_pjm_api_throttle"
+)
+
 
 class PjmApiError(RuntimeError):
     pass
 
 
+@contextmanager
+def _cross_process_lock(path: str) -> Iterator[None]:
+    """Exclusive lock on `path`, blocking until it is free. Windows has no flock, so it takes
+    a one-byte region lock and retries; POSIX uses flock directly."""
+    fh = open(path, "a+b")  # noqa: SIM115 - closed in the finally below
+    try:
+        if os.name == "nt":
+            import msvcrt
+
+            while True:
+                try:
+                    fh.seek(0)
+                    msvcrt.locking(fh.fileno(), msvcrt.LK_NBLCK, 1)
+                    break
+                except OSError:
+                    time.sleep(0.05)
+        else:
+            import fcntl
+
+            fcntl.flock(fh, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            if os.name == "nt":
+                import msvcrt
+
+                fh.seek(0)
+                msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                import fcntl
+
+                fcntl.flock(fh, fcntl.LOCK_UN)
+    finally:
+        fh.close()
+
+
+def _read_shared_last_request() -> float:
+    try:
+        with open(f"{_THROTTLE_BASE}.ts") as fh:
+            return float(fh.read().strip() or 0.0)
+    except (OSError, ValueError):
+        return 0.0
+
+
+def _write_shared_last_request(ts: float) -> None:
+    with open(f"{_THROTTLE_BASE}.ts", "w") as fh:
+        fh.write(repr(ts))
+
+
 def _throttle() -> None:
+    """Block until at least _MIN_SECONDS_BETWEEN_REQUESTS have passed since the last PJM
+    request made by ANY process on this host, then record this one. The lock is held while
+    waiting, so concurrent processes queue up behind each other instead of racing."""
     global _last_request_at
-    wait = _MIN_SECONDS_BETWEEN_REQUESTS - (time.monotonic() - _last_request_at)
-    if wait > 0:
-        time.sleep(wait)
-    _last_request_at = time.monotonic()
+    try:
+        with _cross_process_lock(f"{_THROTTLE_BASE}.lock"):
+            now = time.time()
+            # A last-request time in the future means the clock moved backwards; ignore it
+            # rather than stalling for an arbitrary stretch.
+            last = min(max(_last_request_at, _read_shared_last_request()), now)
+            wait = _MIN_SECONDS_BETWEEN_REQUESTS - (now - last)
+            if wait > 0:
+                time.sleep(wait)
+            _last_request_at = time.time()
+            _write_shared_last_request(_last_request_at)
+    except OSError:
+        # No usable lock file (read-only temp dir, etc.): fall back to pacing this process
+        # alone, which is the old behaviour, rather than failing the poll.
+        wait = _MIN_SECONDS_BETWEEN_REQUESTS - (time.time() - _last_request_at)
+        if wait > 0:
+            time.sleep(wait)
+        _last_request_at = time.time()
 
 
 def _post_with_retry(

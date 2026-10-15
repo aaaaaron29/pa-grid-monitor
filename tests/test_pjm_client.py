@@ -19,13 +19,16 @@ FEED_URL = f"{BASE_URL}/{FEED}"
 
 
 @pytest.fixture(autouse=True)
-def _no_throttle(monkeypatch):
+def _no_throttle(monkeypatch, tmp_path):
     """The client paces real PJM requests at least 11s apart to stay under the 6/min rate
     limit (ingestion.pjm_poller.client._throttle) — without this, every test in this file
     would actually sleep, since _last_request_at is a module-level global shared across the
-    whole test run. Reset it and no-op the sleep so tests stay fast and independent."""
+    whole test run. Reset it and no-op the sleep so tests stay fast and independent. The
+    cross-process pacing files are also redirected into tmp_path, so tests never read or
+    write the files a live poller on the same machine is using."""
     import ingestion.pjm_poller.client as client_module
 
+    monkeypatch.setattr(client_module, "_THROTTLE_BASE", str(tmp_path / "pjm_throttle"))
     monkeypatch.setattr(client_module, "_last_request_at", 0.0)
     monkeypatch.setattr(client_module.time, "sleep", lambda _: None)
 
@@ -195,3 +198,78 @@ def test_use_custom_sort_true_is_still_the_default():
     body = json_mod.loads(responses.calls[0].request.body)
     assert body["sort"] == "datetime_beginning_ept"
     assert body["order"] == 1
+
+
+def test_throttle_waits_for_a_request_made_by_another_process(monkeypatch):
+    """The rate limit is per API key, so a request recorded by a different process must delay
+    this one even though this process's own in-memory clock says it is free to go. Simulated
+    by having the shared file say a request happened just now while _last_request_at is 0."""
+    import time as real_time
+
+    import ingestion.pjm_poller.client as client_module
+
+    client_module._write_shared_last_request(real_time.time())
+    monkeypatch.setattr(client_module, "_last_request_at", 0.0)
+    slept: list[float] = []
+    monkeypatch.setattr(client_module.time, "sleep", lambda s: slept.append(s))
+
+    client_module._throttle()
+
+    assert len(slept) == 1
+    assert 10.0 < slept[0] <= client_module._MIN_SECONDS_BETWEEN_REQUESTS
+
+
+def test_throttle_ignores_a_last_request_time_in_the_future(monkeypatch):
+    """If the clock moved backwards, a stored timestamp ahead of 'now' must not stall the
+    poller for however long that gap happens to be."""
+    import time as real_time
+
+    import ingestion.pjm_poller.client as client_module
+
+    client_module._write_shared_last_request(real_time.time() + 3600)
+    monkeypatch.setattr(client_module, "_last_request_at", 0.0)
+    slept: list[float] = []
+    monkeypatch.setattr(client_module.time, "sleep", lambda s: slept.append(s))
+
+    client_module._throttle()
+
+    assert all(s <= client_module._MIN_SECONDS_BETWEEN_REQUESTS for s in slept)
+
+
+def test_two_real_processes_share_one_request_clock(tmp_path):
+    """The behaviour the fix exists for: two separate Python processes each calling the
+    throttle must never get closer together than the minimum interval, taken together."""
+    import subprocess
+    import sys
+    import textwrap
+
+    script = textwrap.dedent(
+        """
+        import sys, time
+        import ingestion.pjm_poller.client as c
+        c._MIN_SECONDS_BETWEEN_REQUESTS = 0.4
+        stamps = []
+        for _ in range(3):
+            c._throttle()
+            stamps.append(time.time())
+        print(",".join(repr(s) for s in stamps))
+        """
+    )
+    env = {**__import__("os").environ, "PJM_THROTTLE_FILE": str(tmp_path / "shared")}
+    procs = [
+        subprocess.Popen(
+            [sys.executable, "-c", script], stdout=subprocess.PIPE, text=True, env=env
+        )
+        for _ in range(2)
+    ]
+    stamps: list[float] = []
+    for p in procs:
+        out, _ = p.communicate(timeout=60)
+        assert p.returncode == 0
+        stamps += [float(x) for x in out.strip().split(",")]
+
+    stamps.sort()
+    gaps = [b - a for a, b in zip(stamps, stamps[1:], strict=False)]
+    assert len(stamps) == 6
+    # 0.35 rather than 0.4 to tolerate timer granularity; unshared clocks would give ~0.
+    assert min(gaps) >= 0.35, gaps
