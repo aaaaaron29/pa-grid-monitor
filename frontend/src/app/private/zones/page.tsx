@@ -9,7 +9,7 @@ import {
   getZoneSummary,
 } from "@/lib/queries/pjm";
 import { ChartCard, StatsGrid, StatTile } from "@/components/ChartCard";
-import { LineChart } from "@/components/LineChart";
+import { LineChart, ChartLegend } from "@/components/LineChart";
 
 
 function fmtPrice(v: number) {
@@ -69,7 +69,19 @@ export default async function ZonesPage({ searchParams }: PageProps<"/private/zo
       </StatsGrid>
 
       <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-2">
-        <ChartCard title={`LMP vs. forecast (${zone})`} meta="hourly, 7 days">
+        <ChartCard
+          title={`LMP vs. forecast (${zone})`}
+          meta="5-minute, 7 days"
+          legend={
+            <ChartLegend
+              series={[
+                { key: "actual", color: "var(--orange)", label: "Actual ($/MWh)" },
+                { key: "forecast", color: "var(--aqua)", label: "Forecast ($/MWh)" },
+              ]}
+            />
+          }
+          footnote="The most recent prices are PJM's provisional figures. PJM revises them when it verifies them, usually the next business day."
+        >
           <LineChart
             data={lmp}
             series={[
@@ -80,7 +92,7 @@ export default async function ZonesPage({ searchParams }: PageProps<"/private/zo
             yFormat="usd"
           />
         </ChartCard>
-        <ChartCard title={`Forecast residuals (${zone})`} meta="hourly, 7 days">
+        <ChartCard title={`Forecast residuals (${zone})`} meta="5-minute, 7 days">
           <LineChart
             data={residuals}
             series={[{ key: "residual", color: "var(--blue)", label: "Residual" }]}

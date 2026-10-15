@@ -81,6 +81,11 @@ export default async function AccountabilityPage() {
             &middot; <b>4</b> Jan&apos;26 PJM peak forecast raised to 12,000MW &middot;{" "}
             <b>5</b> Q2&apos;26 31.8GW pipeline
           </p>
+          <p className="mt-2 text-[0.8rem]" style={{ color: "var(--ink-2)" }}>
+            The final month may be incomplete, so its average and peak can sit below a full
+            month&apos;s. Compare same months across years rather than reading the last point as
+            a trend.
+          </p>
         </ChartCard>
       </div>
 
