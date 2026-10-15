@@ -3,11 +3,7 @@
 Near-real-time anomaly detection on the PJM electricity grid, with a private analysis layer
 correlating zone-level grid stress in Pennsylvania against data-center interconnection activity.
 
-**Status: core pipeline built and CI-verified end to end** (ingestion, Kafka, Postgres, both
-inference services, Prometheus, Grafana, and Kubernetes manifests validated against a real
-cluster in CI). Live public hosting is paused for now, Oracle cut its free tier capacity
-again after this was planned. The data-center correlation layer and a dedicated frontend are
-deferred, not built. See [ARCHITECTURE.md](ARCHITECTURE.md) for full reasoning.
+**Status: core pipeline built and CI-verified end to end (ingestion, Kafka, Postgres, both inference services, Prometheus, Grafana, and Kubernetes manifests validated against a real cluster in CI). The data-center correlation layer and a dedicated frontend are deferred, not built.
 
 ## What it does
 
