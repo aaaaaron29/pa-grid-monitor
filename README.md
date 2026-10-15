@@ -1,18 +1,71 @@
 # pa-grid-monitor
 
-Near-real-time anomaly detection on the PJM electricity grid, with a private analysis layer
-correlating zone-level grid stress in Pennsylvania against data-center interconnection activity.
+Near-real-time anomaly detection on the PJM electricity grid, plus a public map of
+publicly reported data center projects in Pennsylvania and a passcode-gated analysis layer
+that sets zone-level grid stress beside them.
 
-**Status: core pipeline built and CI-verified end to end (ingestion, Kafka, Postgres, both inference services, Prometheus, Grafana, and Kubernetes manifests validated against a real cluster in CI). The data-center correlation layer and a dedicated frontend are deferred, not built.
+- **Live site:** https://girdwatch.vercel.app
+- **Static demo (no database, snapshot data):** https://aaaaaron29.github.io/pa-grid-monitor/
+
+**Status.** The pipeline (ingestion, Kafka, Postgres, two inference services, Prometheus,
+Grafana) is built and CI-verified end to end, and the Kubernetes manifests are validated
+against a real cluster in CI. The frontend is built and deployed. The pipeline currently runs
+on a single local machine rather than a cluster, so the live site's private pages are only as
+fresh as the last hourly sync from that machine. The full correlation layer between grid
+stress and data center interconnection activity is not built.
 
 ## What it does
 
 Polls grid data on a schedule into Kafka and Postgres, forecasts what demand should be,
-flags the intervals where reality diverges from that forecast, and serves the result from a
-Grafana dashboard running 24/7 on a self-hosted k3s cluster.
+flags the intervals where reality diverges from that forecast, and shows the result on a
+website and in Grafana.
 
 "Near-real-time" is literal: EIA publishes on a multi-hour lag and PJM refreshes every five
 minutes, so this is scheduled polling, not a continuous event stream.
+
+## The website
+
+A Next.js app in [frontend/](frontend/).
+
+| Route | Access | Contents |
+|---|---|---|
+| `/` | Public | Case study and methodology |
+| `/demand` | Public | PJM-wide hourly demand against the forecast, from EIA data |
+| `/map` | Public | Pennsylvania data center map (below) |
+| `/private/*` | Passcode | PA zone prices, anomalies, forecast accountability, map with a zone overlay |
+
+### The data center map
+
+An interactive map of publicly reported data center projects in Pennsylvania.
+
+- **Status model.** Each project is Announced, Under local review, Approved for a first
+  phase, Under construction, Rejected locally, or Abandoned. Each status has its own marker
+  shape as well as a color, and filter chips show live counts.
+- **Search, sortable table and shareable links.** The selected project, status filters and
+  search are kept in the URL.
+- **Who and what is nearby.** For projects placed at a specific site, the panel gives
+  2020 Census people and homes within half a mile to five miles, the nearest homes, and
+  schools, hospitals, nursing homes and child care within a mile. Optional 1 and 5 mile rings
+  zoom the map to the site. Existing housing only. Projects located only to a municipality
+  show "not measured".
+- **Power plants.** An optional layer of operating plants of 100 MW or more, and the nearest
+  plant for each measured project.
+- **Local response.** Notes on public comment, votes and opposition, only where a source was
+  read, each with a link and date.
+- **Proximity is not impact.** The map shows who lives near a marker. It does not forecast
+  noise, water use, emissions or rates, and there is no risk score.
+
+The project list is hand-curated and is not a registry: there is no authoritative public
+dataset of these projects. An entry is added only when a news article, company release or
+similar source was read and supports its status, and each entry carries an as-of date and its
+sources. Statuses go stale quickly, so treat the date as part of the data. Project data is in
+[scripts/map/data_centers.json](scripts/map/data_centers.json), and
+`python scripts/map/build_map_data.py` regenerates the frontend data files from it (county
+and utility by point-in-polygon, exposure from Census blocks, facilities and plants from
+HIFLD). `python scripts/map/locate.py` finds coordinates for a new project.
+
+Sources: U.S. Census 2020 redistricting files and county geometry, and HIFLD retail service
+territories, power plants and facilities as served by Penn State's PASDA.
 
 ## Two data tiers, and why
 
@@ -20,14 +73,17 @@ minutes, so this is scheduled polling, not a continuous event stream.
 |---|---|---|
 | **Source** | EIA-930 Hourly Electric Grid Monitor | PJM Data Miner 2 |
 | **Granularity** | PJM-wide, hourly | PA zones (PECO, PPL, METED, PENELEC, DUQ), 5-minute |
-| **Visibility** | Open dashboard link | Authenticated access only |
+| **Visibility** | Open site and this repository | Passcode-gated pages only |
 
 PJM's Data Miner terms prohibit non-members from republishing its data, so everything
-publicly visible here (the dashboard and this repository) is built exclusively on EIA's
-U.S. federal public-domain data. The PJM tier exists for zone-level analysis and is
-demonstrated live rather than published: **no raw PJM values, sample rows, screenshots, or
-PJM-trained model artifacts appear in this repo.** Code, schema, methodology, and aggregate
-findings do.
+publicly visible here (the public routes, the static demo and this repository) is built
+exclusively on EIA's U.S. federal public-domain data, public geography and public reporting.
+The PJM tier exists for zone-level analysis and is demonstrated behind a passcode rather than
+published: **no raw PJM values, sample rows, screenshots, or PJM-trained model artifacts
+appear in this repo.** Code, schema, methodology, and aggregate findings do.
+
+The static demo build excludes the private routes and scans its output for forbidden strings
+before it replaces `docs/`.
 
 ## Methodology
 
@@ -47,7 +103,27 @@ findings do.
 Full reasoning, including what is deliberately *not* claimed, is in
 [ARCHITECTURE.md](ARCHITECTURE.md).
 
+## Running it
+
+- **Pipeline:** Postgres, Kafka, a poller and consumer per source, and the inference services.
+  The PJM poller shares one cross-process rate limit because the API allows 6 requests per
+  minute per key.
+- **Database for the site:** the pipeline writes to local Postgres, and
+  `scripts/sync_to_neon.py` copies new rows to a Neon database on an hourly schedule. Neon's
+  free plan would run out of compute hours if the pipeline wrote to it directly every five
+  minutes. See ARCHITECTURE.md for the reasoning.
+- **Frontend:** `cd frontend && npm install && npm run dev`, with `DATABASE_URL` and
+  `PRIVATE_PASSCODE` set in `frontend/.env.local` (see `.env.example`; gitignored, never
+  commit it). The public map needs neither.
+- **Static demo:** `python scripts/build_static_demo.py` rebuilds `docs/`.
+- **Checks:** `pytest`, `ruff check .`, and in `frontend/`: `npx tsc --noEmit`, `npm run lint`
+  and `npm run build`.
+
+Private pages sit behind a passcode with a database-backed lockout: three failures from one
+address lock it out for 15 minutes, and the check fails closed.
+
 ## Stack
 
-Python · Kafka (KRaft) · Postgres · scikit-learn / PyTorch · FastAPI · Prometheus · Grafana ·
-k3s on Oracle Cloud · GitHub Actions
+Python · Kafka (KRaft) · Postgres · Neon · scikit-learn / PyTorch · FastAPI · Prometheus ·
+Grafana · Next.js · Tailwind · Vercel · GitHub Actions · GitHub Pages · Kubernetes (k3s
+manifests validated in CI)
