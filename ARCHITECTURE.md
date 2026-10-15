@@ -958,6 +958,32 @@ README.md             documents the public/private data split explicitly for any
    pipeline processes themselves are started by hand, so after a restart Neon goes stale until
    both are running again.
 
+   **Private-page audit and what it found (2026-10-15).** The private zone pages showed no
+   forecast line and an empty residuals chart. Cause: `pjm_lmp_readings` had a two-day hole
+   (Oct 13 and 14) from when the pipeline was not running, and `inference/pjm_service.py`
+   correctly declines to score when the week of history before a reading has a hole. It logged
+   that decision at DEBUG, so nothing visible said scoring had stopped. Fixes: the hole was
+   closed with the verified feed (`python -m ingestion.backfill --source pjm`);
+   `scripts/rescore_recent.py` re-scores the trailing days with `model.score.score_since`, a
+   batch version of `score_latest` that a test pins to it point by point (and that reproduced
+   the live EIA service's stored scores exactly on real data) so the stretch the live service
+   skipped gets a forecast and residuals; and `inference/skip_tracker.py` now logs a WARNING
+   once when scoring halts and an INFO when it resumes. Also corrected: the zone charts were
+   labelled hourly but are 5-minute data, and the price chart gained a legend and a note that
+   the newest prices are provisional. One thing to keep in mind when reading the result: the
+   PJM detector flags about 3% of the last week's intervals against the 1% budget it was
+   calibrated to on validation data. The week included a multi-hour price spike on Oct 13 and a
+   very large one on Oct 14, and sustained spikes are flagged interval by interval, so some
+   of that is expected, but the rate should be watched rather than assumed to be fine.
+
+   **Private sign-in lockout (2026-10-15).** Three wrong passcodes lock a visitor out for 15
+   minutes, and during the lockout even the correct passcode is refused. State is in the
+   `private_login_attempts` table (migration 0004), keyed by a hash of the visitor's IP,
+   because the site runs as serverless functions and an in-memory counter would reset between
+   requests. It fails closed: if the table cannot be reached, nobody signs in. It limits
+   guessing from one address only, so the passcode still needs to be long. The `next`
+   redirect after sign-in is restricted to same-site `/private/` paths.
+
 ## 10. Steps to complete before building starts
 
 These are the only external dependencies: everything else (Kafka, Postgres, Grafana, k3s,
