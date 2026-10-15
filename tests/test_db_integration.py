@@ -12,13 +12,21 @@ from pathlib import Path
 import psycopg
 import pytest
 
-from common.db import connect, fetch_eia_readings, upsert_eia_readings
+from common.db import (
+    connect,
+    fetch_eia_readings,
+    fetch_pjm_load_readings,
+    upsert_eia_readings,
+    upsert_pjm_load_readings,
+)
 
 DSN = os.environ.get(
     "TEST_DATABASE_URL",
     os.environ.get("POSTGRES_DSN", "postgresql://pjm_grid_watch:pjm_grid_watch@localhost:5432/pjm_grid_watch"),
 )
-SCHEMA_SQL = Path(__file__).parent.parent / "infra" / "sql" / "0001_init.sql"
+SQL_DIR = Path(__file__).parent.parent / "infra" / "sql"
+SCHEMA_SQL = SQL_DIR / "0001_init.sql"
+LOAD_SCHEMA_SQL = SQL_DIR / "0003_load.sql"
 
 
 def _db_reachable() -> bool:
@@ -41,9 +49,11 @@ if not _db_reachable():
 def _schema_and_cleanup():
     with psycopg.connect(DSN) as conn, conn.cursor() as cur:
         cur.execute(SCHEMA_SQL.read_text(encoding="utf-8"))
+        cur.execute(LOAD_SCHEMA_SQL.read_text(encoding="utf-8"))
     yield
     with psycopg.connect(DSN) as conn, conn.cursor() as cur:
         cur.execute("DELETE FROM eia_readings WHERE respondent = 'TEST'")
+        cur.execute("DELETE FROM pjm_load_readings WHERE zone = 'TEST'")
 
 
 def _row(value_mw: float | None, retrieved_at: datetime, quality: str = "ok"):
@@ -104,4 +114,73 @@ def test_upsert_handles_missing_value():
         )
 
     assert rows[0]["value_mw"] is None
+    assert rows[0]["quality"] == "missing"
+
+
+def _load_row(load_mw: float | None, verified: bool, retrieved_at: datetime):
+    return {
+        "zone": "TEST",
+        "period_start": datetime(2024, 1, 1, tzinfo=UTC),
+        "load_mw": load_mw,
+        "quality": "ok" if load_mw is not None else "missing",
+        "verified": verified,
+        "retrieved_at": retrieved_at,
+    }
+
+
+def test_pjm_load_upsert_inserts_new_row():
+    with connect(DSN) as conn:
+        written = upsert_pjm_load_readings(
+            conn, [_load_row(1200.0, False, datetime(2024, 1, 2, tzinfo=UTC))]
+        )
+        rows = fetch_pjm_load_readings(
+            conn, "TEST", datetime(2023, 1, 1, tzinfo=UTC), datetime(2025, 1, 1, tzinfo=UTC)
+        )
+
+    assert written == 1
+    assert len(rows) == 1
+    assert rows[0]["load_mw"] == 1200.0
+    assert rows[0]["verified"] is False
+
+
+def test_pjm_load_upsert_revises_changed_value_while_unverified():
+    """Same-day re-pulls of the rolling window should pick up a value correction (the feed's
+    own stated up-to-90-day revision window) as long as neither write is verified yet."""
+    with connect(DSN) as conn:
+        upsert_pjm_load_readings(conn, [_load_row(1200.0, False, datetime(2024, 1, 2, tzinfo=UTC))])
+        upsert_pjm_load_readings(conn, [_load_row(1225.5, False, datetime(2024, 1, 3, tzinfo=UTC))])
+        rows = fetch_pjm_load_readings(
+            conn, "TEST", datetime(2023, 1, 1, tzinfo=UTC), datetime(2025, 1, 1, tzinfo=UTC)
+        )
+
+    assert len(rows) == 1  # same composite key, not a duplicate row
+    assert rows[0]["load_mw"] == 1225.5
+    assert rows[0]["retrieved_at"] == datetime(2024, 1, 3, tzinfo=UTC)
+
+
+def test_pjm_load_upsert_verified_never_downgrades_to_unverified():
+    """The real protection this upsert exists for: a stale/retried poll must never be able
+    to flip an already-verified value back to unverified, even if it carries a different
+    (older, pre-verification) number."""
+    with connect(DSN) as conn:
+        upsert_pjm_load_readings(conn, [_load_row(1225.5, True, datetime(2024, 1, 5, tzinfo=UTC))])
+        # A late/retried poll replays an older, now-stale unverified value.
+        upsert_pjm_load_readings(conn, [_load_row(1200.0, False, datetime(2024, 1, 6, tzinfo=UTC))])
+        rows = fetch_pjm_load_readings(
+            conn, "TEST", datetime(2023, 1, 1, tzinfo=UTC), datetime(2025, 1, 1, tzinfo=UTC)
+        )
+
+    assert rows[0]["load_mw"] == 1225.5  # untouched
+    assert rows[0]["verified"] is True
+    assert rows[0]["retrieved_at"] == datetime(2024, 1, 5, tzinfo=UTC)  # untouched
+
+
+def test_pjm_load_upsert_handles_missing_value():
+    with connect(DSN) as conn:
+        upsert_pjm_load_readings(conn, [_load_row(None, False, datetime(2024, 1, 2, tzinfo=UTC))])
+        rows = fetch_pjm_load_readings(
+            conn, "TEST", datetime(2023, 1, 1, tzinfo=UTC), datetime(2025, 1, 1, tzinfo=UTC)
+        )
+
+    assert rows[0]["load_mw"] is None
     assert rows[0]["quality"] == "missing"

@@ -150,6 +150,26 @@ def upsert_pjm_load_readings(conn: psycopg.Connection, rows: Sequence[dict[str, 
     return len(rows)
 
 
+def fetch_pjm_load_readings(
+    conn: psycopg.Connection,
+    zone: str,
+    start,
+    end,
+) -> Iterable[dict[str, Any]]:
+    """Mainly for tests/debugging — the model and Grafana read Postgres directly."""
+    with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
+        cur.execute(
+            """
+            SELECT zone, period_start, load_mw, quality, verified, retrieved_at
+            FROM pjm_load_readings
+            WHERE zone = %s AND period_start >= %s AND period_start < %s
+            ORDER BY period_start
+            """,
+            (zone, start, end),
+        )
+        return cur.fetchall()
+
+
 def fetch_pjm_lmp_readings(
     conn: psycopg.Connection,
     zone: str,

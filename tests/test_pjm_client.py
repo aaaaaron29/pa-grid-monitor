@@ -73,6 +73,23 @@ def test_fetch_page_rejects_multiple_pnode_ids():
 
 
 @responses.activate
+def test_fetch_page_sends_zone_filter_for_the_load_feed(load_fixture):
+    """hrl_load_metered filters server-side by a `zone` text field, confirmed live
+    2026-10-14 -- a completely different mechanism from the LMP feeds' pnode_id, so it gets
+    its own body shape, not a reuse of the pnode_ids path."""
+    load_url = f"{BASE_URL}/hrl_load_metered"
+    responses.add(
+        responses.POST, load_url, json=load_fixture("pjm_response_page1.json"), status=200
+    )
+
+    fetch_page(api_key="k", feed="hrl_load_metered", datetime_filter="lastweek", zone="PL")
+
+    body = json_mod.loads(responses.calls[0].request.body)
+    assert {"zone": "PL"} in body["filters"]
+    assert not any("pnode_id" in f for f in body["filters"])
+
+
+@responses.activate
 def test_fetch_range_paginates_across_pages(load_fixture):
     responses.add(
         responses.POST, FEED_URL, json=load_fixture("pjm_response_page1_of2.json"), status=200
