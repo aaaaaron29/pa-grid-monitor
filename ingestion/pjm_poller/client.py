@@ -8,9 +8,13 @@ the full investigation. Key findings this client is built around:
   - `pnode_name` and `type` are not server-filterable on these feeds (their column metadata
     has enableFiltering unset); only `pnode_id` is. Zone filtering is therefore by pnode_id,
     with the zone -> pnode_id mapping in common.normalize_pjm.ZONE_PNODE_IDS.
-  - Two feeds matter here: rt_unverified_fivemin_lmps (posts every 5 min, not
-    settlement-quality, 30-day retention) and rt_fivemin_hrl_lmps (posts once daily,
-    settlement-quality, deep history). Same client, different feed name + page size.
+  - Three feeds matter here: rt_unverified_fivemin_lmps (posts every 5 min, not
+    settlement-quality, 30-day retention), rt_fivemin_hrl_lmps (posts once daily,
+    settlement-quality, deep history), and hrl_load_metered (real zone-level metered
+    demand, confirmed live 2026-10-14, posts once daily, up to 90-day revision window,
+    first available 1993). Same client, different feed name + page size. The load feed
+    filters by a `zone` text field instead of `pnode_id` -- see fetch_page's `zone` param
+    and common.normalize_pjm.ZONE_LOAD_CODES.
 """
 from __future__ import annotations
 
@@ -27,7 +31,7 @@ from common.metrics import API_ERRORS_TOTAL
 log = logging.getLogger(__name__)
 
 BASE_URL = "https://api.pjm.com/api/v1"
-FeedName = Literal["rt_unverified_fivemin_lmps", "rt_fivemin_hrl_lmps"]
+FeedName = Literal["rt_unverified_fivemin_lmps", "rt_fivemin_hrl_lmps", "hrl_load_metered"]
 
 _MAX_RETRIES = 4
 _BACKOFF_BASE_SECONDS = 1.5
@@ -94,6 +98,7 @@ def fetch_page(
     datetime_filter: str,
     datetime_field: str = "datetime_beginning_ept",
     pnode_ids: list[int] | None = None,
+    zone: str | None = None,
     use_custom_sort: bool = True,
     start_row: int = 1,
     row_count: int = _MAX_ROW_COUNT,
@@ -115,6 +120,11 @@ def fetch_page(
     call — the API takes one value per filter object, not a list); omit to pull every node
     in the interval and filter client-side via common.normalize_pjm.
 
+    `zone` is the equivalent server-side filter for hrl_load_metered, confirmed live
+    2026-10-14 — that feed identifies zones by a `zone` text field (its own codes: PE, PL,
+    ME, PN, DUQ — see common.normalize_pjm.ZONE_LOAD_CODES), not pnode_id, so it needs its
+    own filter parameter rather than reusing pnode_ids.
+
     `use_custom_sort=False` AND `pnode_ids=None` together are required once a query reaches
     PJM's "archived" window (confirmed live: `rt_fivemin_hrl_lmps` archives data after
     `archiveCutoffDays` — 186 in its metadata as of 2026-10-13, ~6 months, not the "two
@@ -130,6 +140,8 @@ def fetch_page(
         if len(pnode_ids) != 1:
             raise ValueError("PJM's filter takes one pnode_id per request; call once per zone")
         filters.append({"pnode_id": pnode_ids[0]})
+    if zone:
+        filters.append({"zone": zone})
 
     body: dict[str, Any] = {
         "rowCount": min(row_count, _MAX_ROW_COUNT),
@@ -154,14 +166,16 @@ def fetch_range(
     datetime_filter: str,
     datetime_field: str = "datetime_beginning_ept",
     pnode_ids: list[int] | None = None,
+    zone: str | None = None,
     use_custom_sort: bool = True,
     row_count: int = _MAX_ROW_COUNT,
 ) -> Iterator[dict[str, Any]]:
     """Yields raw row dicts across the full result set for one datetime_filter, paginating
-    past the row-count cap automatically. For a single zone, pass a one-element pnode_ids;
-    for all five, call this once per zone (PJM's filter doesn't support an IN-list) or omit
-    pnode_ids and filter client-side on the (typically few thousand) rows per interval — the
-    latter is required once the range might be archived (see fetch_page)."""
+    past the row-count cap automatically. For a single zone, pass a one-element pnode_ids
+    (LMP feeds) or a zone code (hrl_load_metered); for all five, call this once per zone
+    (PJM's filter doesn't support an IN-list) or omit both and filter client-side on the
+    (typically few thousand) rows per interval — the latter is required once the range
+    might be archived (see fetch_page)."""
     start_row = 1
     while True:
         page = fetch_page(
@@ -170,6 +184,7 @@ def fetch_range(
             datetime_filter=datetime_filter,
             datetime_field=datetime_field,
             pnode_ids=pnode_ids,
+            zone=zone,
             use_custom_sort=use_custom_sort,
             start_row=start_row,
             row_count=row_count,
@@ -191,6 +206,7 @@ def fetch_range_for_date(
     start: datetime,
     end: datetime,
     pnode_ids: list[int] | None = None,
+    zone: str | None = None,
     use_custom_sort: bool = True,
     row_count: int = _MAX_ROW_COUNT,
 ) -> Iterator[dict[str, Any]]:
@@ -204,6 +220,7 @@ def fetch_range_for_date(
         datetime_filter=datetime_filter,
         datetime_field="datetime_beginning_utc",
         pnode_ids=pnode_ids,
+        zone=zone,
         use_custom_sort=use_custom_sort,
         row_count=row_count,
     )

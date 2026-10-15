@@ -115,6 +115,41 @@ def upsert_pjm_lmp_readings(conn: psycopg.Connection, rows: Sequence[dict[str, A
     return len(rows)
 
 
+# Same verified-always-wins protection as pjm_lmp_readings, for the same reason: a re-poll of
+# hrl_load_metered during the feed's up-to-90-day revision window could see a row that was
+# unverified on a previous poll become verified on this one -- that transition must never be
+# able to run in reverse from a stale/retried poll.
+_UPSERT_PJM_LOAD_READING = """
+INSERT INTO pjm_load_readings
+    (zone, period_start, load_mw, quality, verified, retrieved_at)
+VALUES
+    (%(zone)s, %(period_start)s, %(load_mw)s, %(quality)s, %(verified)s,
+     %(retrieved_at)s)
+ON CONFLICT (zone, period_start) DO UPDATE SET
+    load_mw = EXCLUDED.load_mw,
+    quality = EXCLUDED.quality,
+    verified = EXCLUDED.verified,
+    retrieved_at = EXCLUDED.retrieved_at
+WHERE (EXCLUDED.verified OR NOT pjm_load_readings.verified)
+  AND (
+    pjm_load_readings.load_mw IS DISTINCT FROM EXCLUDED.load_mw
+    OR pjm_load_readings.quality IS DISTINCT FROM EXCLUDED.quality
+    OR pjm_load_readings.verified IS DISTINCT FROM EXCLUDED.verified
+  )
+"""
+
+
+def upsert_pjm_load_readings(conn: psycopg.Connection, rows: Sequence[dict[str, Any]]) -> int:
+    """Upsert a batch of normalized PJM zone-load rows (see
+    common.normalize_pjm.normalize_pjm_load_rows). Same caveat as upsert_eia_readings:
+    returns rows passed, not rows actually changed."""
+    if not rows:
+        return 0
+    with conn.cursor() as cur:
+        cur.executemany(_UPSERT_PJM_LOAD_READING, rows)
+    return len(rows)
+
+
 def fetch_pjm_lmp_readings(
     conn: psycopg.Connection,
     zone: str,

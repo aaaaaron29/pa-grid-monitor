@@ -22,6 +22,7 @@ log = logging.getLogger(__name__)
 TOPIC_EIA_RAW = "eia.grid.raw"
 TOPIC_PJM_RAW = "pjm.lmp.raw"
 TOPIC_PJM_ANOMALIES = "pjm.lmp.anomalies"
+TOPIC_PJM_LOAD_RAW = "pjm.load.raw"
 
 
 def _json_default(obj: Any) -> str:
