@@ -22,3 +22,8 @@ CREATE TABLE IF NOT EXISTS pjm_load_readings (
 );
 
 CREATE INDEX IF NOT EXISTS pjm_load_readings_period_idx ON pjm_load_readings (period_start);
+
+-- Record this migration like the others do, so the runner skips it next time. (It was
+-- previously re-applied on every run; harmless because everything above is IF NOT EXISTS.)
+INSERT INTO schema_migrations (version) VALUES ('0003_load')
+ON CONFLICT (version) DO NOTHING;
