@@ -40,3 +40,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# static GitHub Pages build workspace (scripts/build_static_demo.py)
+/.static-demo/

@@ -52,8 +52,70 @@
   box-sizing: border-box;
 }
 
-body {
-  background: var(--page);
-  color: var(--ink-1);
-  font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+/* Base layer so Tailwind utilities (no-underline, text-*, etc.) can still override. */
+@layer base {
+  html {
+    scrollbar-color: var(--baseline) transparent;
+  }
+
+  body {
+    background: var(--page);
+    color: var(--ink-1);
+    font: 16px/1.6 var(--font-geist-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-variant-numeric: lining-nums;
+  }
+
+  code {
+    font-family: var(--font-geist-mono), ui-monospace, "Cascadia Mono", Consolas, monospace;
+    font-size: 0.9em;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  /* Tailwind's preflight zeroes paragraph margins; restore a reading rhythm. */
+  main p + p {
+    margin-top: 0.9em;
+  }
+
+  main p {
+    text-wrap: pretty;
+  }
+
+  /* Links inside content must read as links without relying on color alone. */
+  main a {
+    text-decoration: underline;
+    text-decoration-color: var(--baseline);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+    transition: text-decoration-color 120ms ease-out;
+  }
+
+  main a:hover {
+    text-decoration-color: var(--blue);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--blue) 30%, transparent);
+  }
+
+  ::placeholder {
+    color: var(--ink-muted);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }

@@ -924,6 +924,21 @@ README.md             documents the public/private data split explicitly for any
    ever pursued, would be a separate follow-up that could later make the accountability
    content public. Uses the `pbakaus/impeccable` design plugin for the UI pass.
 
+   **PA map and citations (2026-10-15).** `/map` is a public interactive map of PA counties,
+   utility service territories, and publicly reported data center projects. It is prerendered
+   static content and reads no database, so it cannot carry PJM data. `/private/map` is the
+   same component with a zone overlay (LMP and anomaly counts) supplied only through that
+   private route. Geometry is public: U.S. Census-derived county polygons and HIFLD retail
+   service territories (served by PASDA). The project list is hand-curated from public
+   reporting, one entry per project with the sources actually read, and is not a registry:
+   no authoritative public dataset exists. It lives in `scripts/map/data_centers.json`, and
+   `python scripts/map/build_map_data.py` regenerates `frontend/src/data/paGeo.ts` and
+   `dataCenters.ts` from it (county and utility are computed by point-in-polygon). Statuses go
+   stale quickly, so each project carries an as-of date and entries that were denied or
+   abandoned stay on the map, marked as ended. Quoted sources on the site go through one
+   registry (`frontend/src/lib/sources.ts`) rendered as numbered citations and a generated
+   reference list.
+
 ## 10. Steps to complete before building starts
 
 These are the only external dependencies: everything else (Kafka, Postgres, Grafana, k3s,

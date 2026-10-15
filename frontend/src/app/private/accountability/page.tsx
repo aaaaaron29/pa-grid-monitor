@@ -28,9 +28,9 @@ export default async function AccountabilityPage() {
   const last = yoy[yoy.length - 1];
 
   return (
-    <main className="mx-auto max-w-[1100px] px-4 py-12">
-      <div className="mb-1 text-[0.78rem] font-bold uppercase tracking-wide" style={{ color: "var(--orange)" }}>
-        Private -- PJM Data Miner 2 sourced
+    <main className="mx-auto w-full max-w-[1100px] px-4 py-12">
+      <div className="mb-1 text-[0.8rem] font-semibold" style={{ color: "var(--ink-2)" }}>
+        Private: PJM Data Miner 2 sourced
       </div>
       <h1 className="mb-3 text-3xl font-bold">Promises vs. measured reality</h1>
       <p className="mb-8 max-w-[680px]" style={{ color: "var(--ink-2)" }}>
@@ -66,8 +66,7 @@ export default async function AccountabilityPage() {
             ]}
             annotations={annotations}
             xLabelEvery={6}
-            xTickLabel={(raw) => String(raw)}
-            tooltipXLabel={(raw) => String(raw)}
+            xKind="month"
             height={260}
           />
           <ChartLegend
@@ -76,7 +75,7 @@ export default async function AccountabilityPage() {
               { key: "peakMw", color: "var(--aqua)", label: "Monthly peak (MW)" },
             ]}
           />
-          <p className="mt-2.5 text-[0.78rem]" style={{ color: "var(--ink-muted)" }}>
+          <p className="mt-3 text-[0.8rem]" style={{ color: "var(--ink-2)" }}>
             Numbered markers: <b>1</b> Q1&apos;24 ~3GW signed &middot; <b>2</b> Aug&apos;25
             800MW-by-2026/14.4GW-by-2034 forecast &middot; <b>3</b> Q4&apos;25 25.2GW signed
             &middot; <b>4</b> Jan&apos;26 PJM peak forecast raised to 12,000MW &middot;{" "}
@@ -92,8 +91,8 @@ export default async function AccountabilityPage() {
         the claims themselves grew roughly tenfold over the same window.
       </p>
 
-      <div className="mt-4 max-w-[680px] rounded-lg border-l-[3px] border p-5" style={{ borderColor: "var(--border)", borderLeftColor: "var(--orange)", background: "var(--surface-1)" }}>
-        <h3 className="mb-1 font-bold" style={{ color: "var(--orange)" }}>
+      <div className="mt-6 max-w-[680px] rounded-lg border p-5" style={{ borderColor: "color-mix(in srgb, var(--orange) 55%, var(--border))", background: "var(--surface-1)" }}>
+        <h3 className="mb-1 font-bold">
           Why this isn&apos;t &quot;PPL is lying&quot;
         </h3>
         <p className="mb-0">
@@ -110,7 +109,7 @@ export default async function AccountabilityPage() {
         </p>
       </div>
 
-      <p className="mt-4 max-w-[680px] text-[0.86rem]" style={{ color: "var(--ink-muted)" }}>
+      <p className="mt-6 max-w-[680px] text-[0.88rem]" style={{ color: "var(--ink-2)" }}>
         One honesty note on the data itself: PJM&apos;s feed never marks PPL&apos;s largest load
         component (PLCO, the bulk of the zone) as settlement-verified, unlike METED, PECO, and
         PENELEC. Duquesne&apos;s zone has the same gap. The numbers above are PJM&apos;s real

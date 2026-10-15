@@ -13,11 +13,8 @@ import { LineChart } from "@/components/LineChart";
 
 
 function fmtPrice(v: number) {
-  return "$" + v.toFixed(2);
-}
-
-function tooltipTime(raw: unknown) {
-  return typeof raw === "string" ? raw.slice(5, 16).replace("T", " ") : String(raw);
+  const abs = Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return (v < 0 ? "-$" : "$") + abs;
 }
 
 function isZone(v: string | undefined): v is Zone {
@@ -37,28 +34,29 @@ export default async function ZonesPage({ searchParams }: PageProps<"/private/zo
   ]);
 
   return (
-    <main className="mx-auto max-w-[1100px] px-4 py-12">
-      <div className="mb-1 text-[0.78rem] font-bold uppercase tracking-wide" style={{ color: "var(--orange)" }}>
-        Private -- PJM Data Miner 2 sourced
+    <main className="mx-auto w-full max-w-[1100px] px-4 py-12">
+      <div className="mb-1 text-[0.8rem] font-semibold" style={{ color: "var(--ink-2)" }}>
+        Private: PJM Data Miner 2 sourced
       </div>
-      <h1 className="mb-6 text-3xl font-bold">PJM zone LMP</h1>
+      <h1 className="mb-5 text-3xl font-bold">PJM zone LMP</h1>
 
-      <div className="mb-6 flex gap-2">
+      <nav aria-label="Zone" className="mb-6 flex flex-wrap gap-2">
         {ZONES.map((z) => (
           <Link
             key={z}
             href={`/private/zones?zone=${z}`}
-            className="rounded-full px-3 py-1 text-sm font-semibold"
+            aria-current={z === zone ? "page" : undefined}
+            className="rounded-full px-3.5 py-1.5 text-sm font-semibold no-underline hover:brightness-110"
             style={{
               background: z === zone ? "var(--orange)" : "var(--surface-1)",
-              color: z === zone ? "white" : "var(--ink-2)",
+              color: z === zone ? "#0b0b0b" : "var(--ink-2)",
               border: "1px solid var(--border)",
             }}
           >
             {z}
           </Link>
         ))}
-      </div>
+      </nav>
 
       <StatsGrid>
         <StatTile label={`Current LMP (${zone})`} value={summary.currentPrice != null ? fmtPrice(summary.currentPrice) : "--"} />
@@ -70,7 +68,7 @@ export default async function ZonesPage({ searchParams }: PageProps<"/private/zo
         <StatTile label="Anomalies (7d)" value={summary.anomalies7d} />
       </StatsGrid>
 
-      <div className="mt-6 grid gap-5 md:grid-cols-2">
+      <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-2">
         <ChartCard title={`LMP vs. forecast (${zone})`} meta="hourly, 7 days">
           <LineChart
             data={lmp}
@@ -79,8 +77,7 @@ export default async function ZonesPage({ searchParams }: PageProps<"/private/zo
               { key: "forecast", color: "var(--aqua)", label: "Forecast" },
             ]}
             flagKey="flagged"
-            yFormat={fmtPrice}
-            tooltipXLabel={tooltipTime}
+            yFormat="usd"
           />
         </ChartCard>
         <ChartCard title={`Forecast residuals (${zone})`} meta="hourly, 7 days">
@@ -88,19 +85,18 @@ export default async function ZonesPage({ searchParams }: PageProps<"/private/zo
             data={residuals}
             series={[{ key: "residual", color: "var(--blue)", label: "Residual" }]}
             flagKey="flagged"
-            yFormat={fmtPrice}
-            tooltipXLabel={tooltipTime}
+            yFormat="usd"
           />
         </ChartCard>
       </div>
 
-      <h2 className="mt-10 mb-3 text-xl font-bold">All five zones, anomalies (7d)</h2>
-      <div className="mb-10 grid grid-cols-5 gap-px overflow-hidden rounded-[10px] border" style={{ background: "var(--border)", borderColor: "var(--border)" }}>
+      <h2 className="mt-12 mb-3 text-xl font-bold">All five zones, anomalies (7d)</h2>
+      <div className="mb-12 grid grid-cols-2 gap-px sm:grid-cols-5 [&>*:last-child]:col-span-2 sm:[&>*:last-child]:col-span-1 overflow-hidden rounded-[10px] border" style={{ background: "var(--border)", borderColor: "var(--border)" }}>
         {ZONES.map((z) => {
           const count = allCounts.find((c) => c.zone === z)?.count ?? 0;
           return (
             <div key={z} className="p-4" style={{ background: "var(--surface-1)" }}>
-              <div className="text-sm font-bold">{z}</div>
+              <div className="text-sm font-semibold" style={{ color: "var(--ink-2)" }}>{z}</div>
               <div className="text-xl font-bold tabular-nums">{count}</div>
             </div>
           );
@@ -109,11 +105,12 @@ export default async function ZonesPage({ searchParams }: PageProps<"/private/zo
 
       <h2 className="mb-3 text-xl font-bold">Anomaly log ({zone})</h2>
       <div className="overflow-x-auto rounded-[10px] border" style={{ borderColor: "var(--border)" }}>
-        <table className="w-full min-w-[480px] border-collapse text-[0.88rem]">
+        <table className={`w-full border-collapse text-[0.9rem] ${log.length > 0 ? "min-w-[480px]" : ""}`}>
+          <caption className="sr-only">Flagged anomalies for {zone}, most recent first</caption>
           <thead>
             <tr>
               {["Time", "Residual ($/MWh)", "Forest score", "Detector"].map((h) => (
-                <th key={h} className="border-b px-3.5 py-2.5 text-left text-[0.72rem] font-semibold uppercase" style={{ borderColor: "var(--border)", color: "var(--ink-muted)", background: "var(--surface-1)" }}>
+                <th key={h} scope="col" className="border-b px-3.5 py-2.5 text-left text-[0.75rem] font-semibold uppercase tracking-wide" style={{ borderColor: "var(--border)", color: "var(--ink-2)", background: "var(--surface-1)" }}>
                   {h}
                 </th>
               ))}
@@ -122,7 +119,7 @@ export default async function ZonesPage({ searchParams }: PageProps<"/private/zo
           <tbody>
             {log.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-3.5 py-4 text-center" style={{ color: "var(--ink-muted)" }}>
+                <td colSpan={4} className="px-3.5 py-6 text-center" style={{ color: "var(--ink-2)" }}>
                   No anomalies flagged yet for {zone}.
                 </td>
               </tr>
@@ -139,8 +136,11 @@ export default async function ZonesPage({ searchParams }: PageProps<"/private/zo
         </table>
       </div>
 
-      <p className="mt-10">
+      <p className="mt-12">
         <Link href="/private/accountability">The PPL promises-vs-measured load comparison &rarr;</Link>
+      </p>
+      <p className="mt-3">
+        <Link href="/private/map">The PA map with zone overlay &rarr;</Link>
       </p>
     </main>
   );
