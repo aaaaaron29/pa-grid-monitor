@@ -573,13 +573,13 @@
       "name": "Archbald I data center campus (Provident Realty Advisors)",
       "developer": "Archbald I LLC (linked to Provident Realty Advisors)",
       "place": "Archbald Borough, Lackawanna County",
-      "precision": "municipality",
-      "lat": 41.5119,
-      "lon": -75.5377,
+      "precision": "site",
+      "lat": 41.5095,
+      "lon": -75.5661,
       "statusCategory": "rejected",
       "status": "Rejected locally. Archbald Borough Council voted 5-0 on March 27, 2026 to reject the conditional use application. On April 24 the developer appealed in Lackawanna County Court and published a notice claiming the application was approved automatically on March 31 because the council missed its deadline.",
       "asOf": "Times-Tribune, April 25, 2026",
-      "summary": "A proposed campus of up to 18 data centers on about 400 acres along Eynon Jermyn Road and Business Route 6, bordering Staback Park. The original October 2025 filing covered 22 buildings across two sites.",
+      "summary": "A proposed campus of up to 18 data centers on about 400 acres along Eynon Jermyn Road and Business Route 6, bordering Staback Park. The original October 2025 filing covered 22 buildings across two sites. The marker is placed at the edge of Staback Park, which the site borders; the property line is not mapped.",
       "figures": [
         {
           "label": "Buildings",
@@ -627,13 +627,13 @@
       "name": "Project Gravity",
       "developer": "Archbald 25 Developer LLC and US Gravity Purchaser LLC (Affinius Capital)",
       "place": "Archbald Borough, Lackawanna County",
-      "precision": "municipality",
-      "lat": 41.516,
-      "lon": -75.5578,
+      "precision": "site",
+      "lat": 41.5203,
+      "lon": -75.5515,
       "statusCategory": "review",
       "status": "Under local review and litigation. The planning commission gave conditional preliminary plan approval on September 3, 2025. Valley View School District sued in September 2026 to challenge the project's exemption from the borough's data center rules. The state removed the project from the PA Permit Fast Track Program on April 27, citing the developer's unresponsiveness.",
       "asOf": "Times-Tribune, September 23, 2026",
-      "summary": "Seven data centers planned on a 186-acre site between Eynon Jermyn Road and Business Route 6. The plan was filed before the borough's November 2025 data center rules, which the developer argues exempts it from them. No tenant has been announced.",
+      "summary": "Seven data centers planned on a 186-acre site between Eynon Jermyn Road and Business Route 6. The plan was filed before the borough's November 2025 data center rules, which the developer argues exempts it from them. No tenant has been announced. The marker is placed at Valley View Estates, the mobile home park the campus would displace; the property line is not mapped.",
       "figures": [
         {
           "label": "Buildings",
@@ -1418,6 +1418,381 @@
         {
           "label": "LehighValleyLive via Yahoo, Aug 2026",
           "url": "https://www.yahoo.com/news/us/articles/vote-clearing-way-major-data-163315653.html"
+        }
+      ]
+    },
+    {
+      "id": "south-annville-inch-co",
+      "name": "South Annville data center proposal (Inch & Co.)",
+      "developer": "1235 Martina Drive Owner LLC (Inch & Co. and Eastern Land & Resources)",
+      "place": "South Annville Township, Lebanon County",
+      "precision": "municipality",
+      "lat": 40.2906,
+      "lon": -76.5153,
+      "statusCategory": "abandoned",
+      "status": "Abandoned. The ownership group told the township it would no longer pursue a data center, a day before supervisors were to decide on its rezoning request. A week earlier the planning commission had unanimously recommended denying the rezoning. The ABC27 page shows no exact date, and LebTown's April 8, 2026 interview with the developer is the last earlier report.",
+      "asOf": "ABC27 (undated, spring 2026); LebTown, April 8, 2026",
+      "summary": "A planned $1.7 billion campus of five data center buildings of about 150,000 square feet each on a 99-acre site along U.S. Route 422 and Mount Pleasant Road. The request would have rezoned 13 acres from agricultural to industrial.",
+      "figures": [
+        {
+          "label": "Planned investment",
+          "value": "$1.7B",
+          "note": "Per the developer"
+        },
+        {
+          "label": "Buildings",
+          "value": "5",
+          "note": "About 150,000 sq ft each"
+        },
+        {
+          "label": "Site",
+          "value": "99 acres",
+          "note": "Land under contract"
+        }
+      ],
+      "community": [
+        {
+          "text": "Residents strongly opposed the project, mainly because it would use farmland in a largely agricultural community, and held a demonstration across from the property.",
+          "source": {
+            "label": "ABC27",
+            "url": "https://www.abc27.com/local-news/developer-pulls-controversial-lebanon-county-data-center-project/amp/"
+          },
+          "asOf": "Spring 2026"
+        }
+      ],
+      "sources": [
+        {
+          "label": "ABC27",
+          "url": "https://www.abc27.com/local-news/developer-pulls-controversial-lebanon-county-data-center-project/amp/"
+        },
+        {
+          "label": "LebTown, Apr 2026",
+          "url": "https://lebtown.com/2026/04/08/lebtown-exclusive-s-annville-twp-data-center-developer-reveals-project-details/"
+        }
+      ]
+    },
+    {
+      "id": "swatara-corscale-highlands",
+      "name": "Corscale Highlands East and West data centers, Swatara Township",
+      "developer": "Corscale Data Centers",
+      "place": "Highland Street, Swatara Township, Dauphin County",
+      "precision": "municipality",
+      "lat": 40.2463,
+      "lon": -76.8047,
+      "statusCategory": "review",
+      "status": "Under local review. Township commissioners approved a $120.3 million community benefits agreement by a 4-1 vote after rejecting a request to postpone, subject to the solicitor's final review of the language. Land development approvals were not described in the article read.",
+      "asOf": "PennLive via GovTech, October 9, 2026",
+      "summary": "Two data center complexes: Highlands East behind the WITF building and Highlands West on the Dauphin Highlands Golf Course. The agreement pays the township in stages, starting with $7.3 million within 30 days of approval. The article gives no acreage, floor area or power figure.",
+      "figures": [
+        {
+          "label": "Community benefits agreement",
+          "value": "$120.3M",
+          "note": "Paid in stages through the last certificate of occupancy"
+        }
+      ],
+      "community": [
+        {
+          "text": "Residents asked commissioners to table the vote because the public had not seen the agreement in time to comment. One commissioner voted no, saying it lacked specific line items.",
+          "source": {
+            "label": "PennLive via GovTech, Oct 2026",
+            "url": "https://www.govtech.com/artificial-intelligence/data-centers-could-bring-pennsylvania-township-120m"
+          },
+          "asOf": "October 9, 2026"
+        }
+      ],
+      "sources": [
+        {
+          "label": "PennLive via GovTech, Oct 2026",
+          "url": "https://www.govtech.com/artificial-intelligence/data-centers-could-bring-pennsylvania-township-120m"
+        }
+      ]
+    },
+    {
+      "id": "nebius-schuylkill-highridge",
+      "name": "Nebius AI campus, Highridge Industrial Park",
+      "developer": "Nebius",
+      "place": "Highridge Industrial Park, Butler Township, Schuylkill County",
+      "precision": "municipality",
+      "lat": 40.7658,
+      "lon": -76.3293,
+      "statusCategory": "review",
+      "status": "Under local review. Township supervisors voted 2-1 on about August 31, 2026 to approve an ordinance letting Nebius expand its development plan, plus a separate ordinance cutting the data center noise limit from 75 to 65 decibels. Nebius must still submit a final expansion plan for approval by the supervisors and the planning commission. Construction on the first two buildings is expected to start in late 2026.",
+      "asOf": "Republican & Herald via Yahoo, September 1, 2026",
+      "summary": "A 600-acre campus beside the Walmart distribution center along Interstate 81, with a 1.2 GW supply agreement with PPL. Nebius reportedly paid $187.5 million for the property and says it can meet the new noise limit using a closed-loop cooling system.",
+      "figures": [
+        {
+          "label": "Power supply agreement",
+          "value": "1.2 GW",
+          "note": "With PPL; first phase 260 MW targeted for October 2027"
+        },
+        {
+          "label": "Site",
+          "value": "About 600 acres",
+          "note": "Reportedly $187.5M; more parcels to be bought"
+        },
+        {
+          "label": "Water beyond cooling loop",
+          "value": "About 35,000 gal/day",
+          "note": "Cooling system holds about 1.5M gallons"
+        }
+      ],
+      "community": [
+        {
+          "text": "Residents and neighboring municipalities raised concerns about water use and noise, and about 125 people attended an early August open house. The one supervisor who voted no was Patrick Coyle.",
+          "source": {
+            "label": "Republican & Herald via Yahoo, Sep 2026",
+            "url": "https://www.yahoo.com/news/us/articles/nebius-gets-green-light-expand-224600740.html"
+          },
+          "asOf": "September 1, 2026"
+        }
+      ],
+      "sources": [
+        {
+          "label": "Republican & Herald via Yahoo, Sep 2026",
+          "url": "https://www.yahoo.com/news/us/articles/nebius-gets-green-light-expand-224600740.html"
+        }
+      ]
+    },
+    {
+      "id": "new-castle-krnl",
+      "name": "KRNL Data Centers proposal, New Castle Township",
+      "developer": "KRNL Data Centers (New York)",
+      "place": "New Castle Township, Schuylkill County",
+      "precision": "municipality",
+      "lat": 40.7409,
+      "lon": -76.2183,
+      "statusCategory": "announced",
+      "status": "Proposed. KRNL approached township supervisors about rezoning in September 2025 and no plans had been filed. No later reporting was found in this review.",
+      "asOf": "Republican & Herald via Yahoo, September 10, 2025",
+      "summary": "A proposed data center on 89 wooded acres in a conservation area behind Broad Mountain Health and Rehabilitation Center, overlooking a residential street in Frackville. KRNL would need to buy the land from Mount Laurel Enterprises.",
+      "figures": [
+        {
+          "label": "Site",
+          "value": "89 acres",
+          "note": "Conservation area, rezoning sought"
+        }
+      ],
+      "community": [
+        {
+          "text": "About 30 Frackville residents asked supervisors to oppose the project and presented 81 letters against it, citing light and noise, electricity and water use, quality of life and property values.",
+          "source": {
+            "label": "Republican & Herald via Yahoo, Sep 2025",
+            "url": "https://www.yahoo.com/news/articles/frackville-residents-ask-castle-twp-224600191.html"
+          },
+          "asOf": "September 10, 2025"
+        }
+      ],
+      "sources": [
+        {
+          "label": "Republican & Herald via Yahoo, Sep 2025",
+          "url": "https://www.yahoo.com/news/articles/frackville-residents-ask-castle-twp-224600191.html"
+        }
+      ]
+    },
+    {
+      "id": "springdale-dynamo",
+      "name": "Springdale Dynamo data center (former Cheswick plant)",
+      "developer": "Allegheny DC Property Company (Dynamo DC)",
+      "place": "Springdale Borough, Allegheny County",
+      "precision": "site",
+      "lat": 40.5384,
+      "lon": -79.7899,
+      "statusCategory": "approved",
+      "status": "Approved locally. Springdale Borough Council granted a conditional use permit 5-2 on December 16, 2025, after approving six zoning variances. At a June 10, 2026 open house the company showed revised designs, which go to Allegheny County regulators as part of a land development permit application.",
+      "asOf": "90.5 WESA, June 11, 2026",
+      "summary": "A data center on the site of the former Cheswick Generating Station. The June 2026 redesign moves diesel generators from the roof to enclosed ground-level positions, adds battery backup and solar, and uses closed-loop water cooling. The articles read give no megawatt, acreage or floor area figure.",
+      "figures": [],
+      "community": [
+        {
+          "text": "About a dozen residents spoke against the project at the council vote, citing noise, pollution and appearance, and about two dozen opponents rallied outside the June open house. Some council members said they worried the borough could be sued if it rejected the proposal.",
+          "source": {
+            "label": "CBS Pittsburgh, Dec 2025",
+            "url": "https://www.cbsnews.com/pittsburgh/news/springdale-borough-data-center-council-approves-months-debate"
+          },
+          "asOf": "December 17, 2025"
+        }
+      ],
+      "sources": [
+        {
+          "label": "90.5 WESA, Jun 2026",
+          "url": "https://www.wesanews.org/environment-energy/2026-06-11/springdale-data-center-new-designs-opponents-stopped"
+        },
+        {
+          "label": "CBS Pittsburgh, Dec 2025",
+          "url": "https://www.cbsnews.com/pittsburgh/news/springdale-borough-data-center-council-approves-months-debate"
+        }
+      ],
+      "locateAtPlant": "CHESWICK POWER PLANT"
+    },
+    {
+      "id": "switch-big-beaver",
+      "name": "Switch campus, Big Beaver",
+      "developer": "Switch",
+      "place": "Big Beaver Borough, Beaver County",
+      "precision": "municipality",
+      "lat": 40.8226,
+      "lon": -80.3577,
+      "statusCategory": "announced",
+      "status": "Announced on April 30, 2026. The company's release gives no construction timeline or approvals.",
+      "asOf": "Switch press release, April 30, 2026",
+      "summary": "A planned 382-acre campus the company says would use closed-loop water recycling with no discharge, with Switch funding the infrastructure its power needs require. No power figure was given.",
+      "figures": [
+        {
+          "label": "Site",
+          "value": "382 acres",
+          "note": ""
+        }
+      ],
+      "community": [],
+      "sources": [
+        {
+          "label": "Switch press release, Apr 2026",
+          "url": "https://www.switch.com/switch-announces-new-data-center-campus-in-beaver-county-pennsylvania/"
+        }
+      ]
+    },
+    {
+      "id": "tecfusions-keystone-connect",
+      "name": "TECfusions Keystone Connect, Upper Burrell",
+      "developer": "TECfusions",
+      "place": "Upper Burrell Township, Westmoreland County",
+      "precision": "municipality",
+      "lat": 40.5472,
+      "lon": -79.6729,
+      "statusCategory": "construction",
+      "status": "Under construction. TECfusions turned on the first building at the former Alcoa research site in June 2026. The company won a $2 million state grant, and its expansion plans reach 3 GW. The proposal later faced lawsuits and helped inspire a local moratorium on data center construction.",
+      "asOf": "Technical.ly, September 15, 2026",
+      "summary": "A conversion of the former Alcoa research and development campus, about 1,395 acres including nearby property, from 12 MW available at purchase toward a planned 3 GW. A dispute over the company's sealed pitch documents is pending in Commonwealth Court.",
+      "figures": [
+        {
+          "label": "Power available at purchase",
+          "value": "12 MW",
+          "note": "January 2025 report"
+        },
+        {
+          "label": "Planned expansion",
+          "value": "3 GW",
+          "note": ""
+        },
+        {
+          "label": "Site",
+          "value": "About 1,395 acres",
+          "note": "Including nearby property"
+        }
+      ],
+      "community": [],
+      "sources": [
+        {
+          "label": "Technical.ly, Sep 2026",
+          "url": "https://technical.ly/?p=286054"
+        },
+        {
+          "label": "WPXI, Jan 2025",
+          "url": "https://www.wpxi.com/news/local/tecfusions-buys-former-alcoa-research-facility-data-center-campus/2EWEPOPRMNCJTGS5XABVT7UPUM/"
+        }
+      ]
+    },
+    {
+      "id": "talen-montour-rezoning",
+      "name": "Talen Energy rezoning for a data center, Montour County",
+      "developer": "Talen Energy",
+      "place": "Montour County (marker at Talen's Montour power plant)",
+      "precision": "municipality",
+      "lat": 41.0693,
+      "lon": -76.6658,
+      "statusCategory": "rejected",
+      "status": "Rejected locally. The three Montour County commissioners unanimously denied Talen's request on about February 10, 2026, saying Talen had not met its burden of proof. Talen said it still plans a data center project in the county and will refine its plans.",
+      "asOf": "Inside Climate News, February 11, 2026",
+      "summary": "Talen asked to rezone more than 800 acres from agricultural to industrial, which would also have allowed expansion of its coal and gas-fired power plant to supply the data center. The marker is at the existing plant for reference and is not the rezoned land.",
+      "figures": [
+        {
+          "label": "Rezoning request",
+          "value": "More than 800 acres",
+          "note": "Agricultural to industrial"
+        }
+      ],
+      "community": [
+        {
+          "text": "Food & Water Watch praised the denial, and local concerns included electricity bills, water use and the health effects of air pollution.",
+          "source": {
+            "label": "Inside Climate News, Feb 2026",
+            "url": "https://insideclimatenews.org/news/11022026/pennsylvania-talen-energy-data-center-rezoning-denied/"
+          },
+          "asOf": "February 11, 2026"
+        }
+      ],
+      "sources": [
+        {
+          "label": "Inside Climate News, Feb 2026",
+          "url": "https://insideclimatenews.org/news/11022026/pennsylvania-talen-energy-data-center-rezoning-denied/"
+        }
+      ]
+    },
+    {
+      "id": "allen-township-prologis",
+      "name": "Prologis warehouse data center, Allen Township",
+      "developer": "Prologis",
+      "place": "2500 Liberty Drive, Allen Township, Northampton County",
+      "precision": "municipality",
+      "lat": 40.7083,
+      "lon": -75.4884,
+      "statusCategory": "approved",
+      "status": "Approved locally. Allen Township supervisors unanimously approved plans in March 2026 to convert an existing warehouse into a data center. The Lehigh Valley Planning Commission was asking the developer for details on electricity use, water, cooling and emergency plans as of April 22, 2026.",
+      "asOf": "LehighValleyNews, April 22, 2026",
+      "summary": "A conversion of an existing warehouse of about 1 million square feet. No power figure was reported, and the article reports no organized public opposition.",
+      "figures": [
+        {
+          "label": "Floor area",
+          "value": "About 1M sq ft",
+          "note": "Existing warehouse"
+        }
+      ],
+      "community": [],
+      "sources": [
+        {
+          "label": "LehighValleyNews, Apr 2026",
+          "url": "https://cms.lehighvalleynews.com/northampton-county/allen-township-warehouse-could-become-lehigh-valleys-first-hyperscale-data-center"
+        }
+      ]
+    },
+    {
+      "id": "allentown-quantm-emaus",
+      "name": "Quantm Group data center, 2401 W. Emaus Avenue, Allentown",
+      "developer": "Quantm Group LLC",
+      "place": "2401 W. Emaus Avenue, Allentown",
+      "precision": "site",
+      "lat": 40.567,
+      "lon": -75.4737,
+      "statusCategory": "review",
+      "status": "Under local review. The planning commission held a special preliminary review on July 16, 2026. Quantm pledged to withdraw its newest plans and resubmit at the commission's September 8 meeting. The project predates the city's June data center ordinance, so it is reviewed under the earlier rules.",
+      "asOf": "Lehigh Valley Public Media, July 17, 2026",
+      "summary": "An \"edge data center\" of almost 250,000 square feet in a vacant warehouse on Allentown's South Side, with about 66 employees. All but one of 46 truck bays would be removed to fit cooling chillers. No power figure was reported.",
+      "figures": [
+        {
+          "label": "Floor area",
+          "value": "Almost 250,000 sq ft",
+          "note": "Converted warehouse"
+        },
+        {
+          "label": "Employees",
+          "value": "About 66",
+          "note": "Fewer than two dozen per shift"
+        }
+      ],
+      "community": [
+        {
+          "text": "About three dozen residents spoke, mainly about noise, water and electricity use, utility costs and effects on nearby homes. Planners flagged compatibility with Camelot for Children and the Wynnewood Greens housing complex.",
+          "source": {
+            "label": "Lehigh Valley Public Media, Jul 2026",
+            "url": "https://www.lehighvalleypublicmedia.org/news/allentown/neighbors-push-back-on-allentown-data-center-plan-developer-to-refile/"
+          },
+          "asOf": "July 17, 2026"
+        }
+      ],
+      "sources": [
+        {
+          "label": "Lehigh Valley Public Media, Jul 2026",
+          "url": "https://www.lehighvalleypublicmedia.org/news/allentown/neighbors-push-back-on-allentown-data-center-plan-developer-to-refile/"
         }
       ]
     }

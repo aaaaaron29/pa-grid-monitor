@@ -963,6 +963,21 @@ README.md             documents the public/private data split explicitly for any
    project so the 1 and 5 mile rings are legible. Not covered: planned housing, noise, water
    or emissions modeling, and projects not yet found in reporting.
 
+   **Growing the project list (2026-10-15).** The list went from 13 to 44 projects by using
+   trackdatacenters.com's Pennsylvania page only as a lead list of names (its pages cite no
+   external sources, so none of its statuses or figures are used). Each project was then
+   searched, and an entry was added only when a news article, company release or similar
+   source was actually read and supports the status. Each status carries its own as-of date
+   and the sources read. About 70 of the site's 163 entries are existing colocation or
+   telecom facilities, which are out of scope for a map of proposed projects. Entries it
+   lists that could not be verified from a readable source are left off rather than guessed.
+   Placement uses `scripts/map/locate.py`: a street address through the Census geocoder
+   gives precision "site", otherwise the Census 2020 internal point of the township, borough
+   or city gives precision "municipality" (shown as not measured). When several municipality
+   pins share a place they are spread apart so each can be selected, and the panel says so.
+   Re-checking turned up two stale entries (both Amazon campuses were still listed as
+   announced), which is why statuses carry dates and should be re-read periodically.
+
    **Neon sync (2026-10-15).** Pointing the pipeline straight at Neon was the original plan
    and was rejected after checking Neon's free-plan limits: 100 compute-hours per project per
    month, with compute suspending after 5 idle minutes. A pipeline that writes every 5
