@@ -109,6 +109,28 @@ services:
         condition: service_completed_successfully
     command: ["ingestion.pjm_poller.consumer"]
 
+  pjm-load-poller:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    <<: *app-env
+    depends_on:
+      kafka:
+        condition: service_healthy
+    command: ["ingestion.pjm_load_poller"]
+
+  pjm-load-consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    <<: *app-env
+    depends_on:
+      kafka:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    command: ["ingestion.pjm_load_poller.consumer"]
+
   eia-inference:
     build:
       context: .

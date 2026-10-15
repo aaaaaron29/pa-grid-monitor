@@ -9,11 +9,14 @@ pattern, not Docker Compose's `depends_on`.
 
 Confirmed green in CI (`k8s-smoke-test`, passed on the first run): images build and push to
 `ghcr.io/aaaaaron29/pa-grid-monitor-{ingestion,eia-inference,pjm-inference}:latest`, a
-disposable `kind` cluster comes up, every manifest here except `09-ingress.yaml` applies
-cleanly (the Ingress needs cert-manager's CRDs installed first, out of scope for that job
-the same way `compose-smoke-test` never tests real DNS/TLS either), the PJM artifacts PVC
-gets populated through the documented loader-pod procedure, and both inference services
-report healthy through their real K8s Services afterward.
+disposable `kind` cluster comes up, every manifest in the `02-08` range applies cleanly,
+the PJM artifacts PVC gets populated through the documented loader-pod procedure, and both
+inference services report healthy through their real K8s Services afterward. Two files are
+deliberately never applied in CI: `09-ingress.yaml` (needs cert-manager's CRDs installed
+first, out of scope for that job the same way `compose-smoke-test` never tests real
+DNS/TLS either) and `11-ingestion-pollers.yaml` (makes real EIA/PJM API calls -- split out
+of `05-ingestion.yaml`, which now holds only the consumers, specifically so CI's
+range-based apply excludes it by construction, not by an explicit skip step).
 
 Still real, not yet proven: the actual Oracle VM deploy itself (this was verified against a
 throwaway `kind` cluster on a GitHub Actions runner, not the real 2 OCPU/12GB target), and

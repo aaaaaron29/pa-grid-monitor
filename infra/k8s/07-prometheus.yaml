@@ -21,6 +21,10 @@ data:
         static_configs: [{ targets: ["pjm-poller:9100"] }]
       - job_name: pjm-consumer
         static_configs: [{ targets: ["pjm-consumer:9100"] }]
+      - job_name: pjm-load-poller
+        static_configs: [{ targets: ["pjm-load-poller:9100"] }]
+      - job_name: pjm-load-consumer
+        static_configs: [{ targets: ["pjm-load-consumer:9100"] }]
       - job_name: eia-inference
         static_configs: [{ targets: ["eia-inference:9100"] }]
       - job_name: pjm-inference

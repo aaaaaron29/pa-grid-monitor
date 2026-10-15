@@ -1,0 +1,91 @@
+# Three poller Deployments, split into their own file deliberately, not bundled with
+# 05-ingestion.yaml's consumers. These call real EIA/PJM APIs (Architecture.md Section 7:
+# CI makes no live API calls), so they must never be applied in CI or any test environment
+# -- CI's k8s-smoke-test applies infra/k8s/0[2-8]-*.yaml, a range this file's "11-" prefix
+# falls outside of by design, the same mechanism that already excludes 09-ingress.yaml, so
+# no extra exclusion logic is needed in the CI script itself. Apply this file explicitly
+# (or `kubectl apply -f infra/k8s/` for everything) only on the real deploy, where live
+# calls are the whole point.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eia-poller
+  namespace: pjm-grid-watch
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: eia-poller } }
+  template:
+    metadata: { labels: { app: eia-poller } }
+    spec:
+      imagePullSecrets: [{ name: ghcr-pull-secret }]
+      containers:
+        - name: eia-poller
+          image: ghcr.io/aaaaaron29/pa-grid-monitor-ingestion:latest
+          args: ["ingestion.eia_poller"]
+          envFrom:
+            - configMapRef: { name: pjm-grid-watch-config }
+            - secretRef: { name: pjm-grid-watch-secrets }
+          ports: [{ containerPort: 9100, name: metrics }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: eia-poller, namespace: pjm-grid-watch }
+spec:
+  selector: { app: eia-poller }
+  ports: [{ port: 9100, targetPort: 9100 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pjm-poller
+  namespace: pjm-grid-watch
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: pjm-poller } }
+  template:
+    metadata: { labels: { app: pjm-poller } }
+    spec:
+      imagePullSecrets: [{ name: ghcr-pull-secret }]
+      containers:
+        - name: pjm-poller
+          image: ghcr.io/aaaaaron29/pa-grid-monitor-ingestion:latest
+          args: ["ingestion.pjm_poller"]
+          envFrom:
+            - configMapRef: { name: pjm-grid-watch-config }
+            - secretRef: { name: pjm-grid-watch-secrets }
+          ports: [{ containerPort: 9100, name: metrics }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: pjm-poller, namespace: pjm-grid-watch }
+spec:
+  selector: { app: pjm-poller }
+  ports: [{ port: 9100, targetPort: 9100 }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pjm-load-poller
+  namespace: pjm-grid-watch
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: pjm-load-poller } }
+  template:
+    metadata: { labels: { app: pjm-load-poller } }
+    spec:
+      imagePullSecrets: [{ name: ghcr-pull-secret }]
+      containers:
+        - name: pjm-load-poller
+          image: ghcr.io/aaaaaron29/pa-grid-monitor-ingestion:latest
+          args: ["ingestion.pjm_load_poller"]
+          envFrom:
+            - configMapRef: { name: pjm-grid-watch-config }
+            - secretRef: { name: pjm-grid-watch-secrets }
+          ports: [{ containerPort: 9100, name: metrics }]
+---
+apiVersion: v1
+kind: Service
+metadata: { name: pjm-load-poller, namespace: pjm-grid-watch }
+spec:
+  selector: { app: pjm-load-poller }
+  ports: [{ port: 9100, targetPort: 9100 }]

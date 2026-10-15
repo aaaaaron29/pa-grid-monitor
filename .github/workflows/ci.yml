@@ -294,11 +294,14 @@ jobs:
 
   k8s-smoke-test:
     # Verifies infra/k8s/ for real: builds and pushes the three images these manifests
-    # actually reference, spins up a disposable kind cluster, applies every manifest except
-    # 09-ingress.yaml (needs cert-manager's CRDs installed first, out of scope here the same
-    # way compose-smoke-test never tests real DNS/TLS), and confirms both inference services
-    # actually come up -- including populating the PJM artifacts PVC the documented way
-    # (06-inference.yaml), not skipping that step.
+    # actually reference, spins up a disposable kind cluster, applies every manifest in the
+    # 02-08 range, and confirms both inference services actually come up -- including
+    # populating the PJM artifacts PVC the documented way (06-inference.yaml), not skipping
+    # that step. Two files are deliberately never applied here: 09-ingress.yaml (needs
+    # cert-manager's CRDs installed first, out of scope the same way compose-smoke-test
+    # never tests real DNS/TLS) and 11-ingestion-pollers.yaml (makes real EIA/PJM API calls,
+    # Architecture.md Section 7: CI makes no live API calls -- the "02-08" glob below
+    # excludes it by construction, not by an explicit skip).
     runs-on: ubuntu-latest
     needs: lint-and-test
     permissions:
@@ -407,7 +410,7 @@ jobs:
             --docker-password=${{ secrets.GITHUB_TOKEN }} \
             --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Apply the rest of the stack (everything except the Ingress)
+      - name: Apply the rest of the stack (excludes the Ingress and the pollers)
         run: |
           for f in infra/k8s/0[2-8]-*.yaml; do
             kubectl apply -f "$f"
@@ -469,8 +472,10 @@ jobs:
 
       - name: Pod logs (on failure)
         if: failure()
+        # Only the apps this job actually applies -- the pollers (11-ingestion-pollers.yaml)
+        # never run here, so there'd be nothing to log for them.
         run: |
-          for app in eia-poller eia-consumer pjm-poller pjm-consumer eia-inference pjm-inference; do
+          for app in eia-consumer pjm-consumer pjm-load-consumer eia-inference pjm-inference; do
             echo "=== $app ==="
             kubectl -n pjm-grid-watch logs -l app=$app --tail=100 --all-containers || true
           done
