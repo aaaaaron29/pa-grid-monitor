@@ -35,7 +35,7 @@ export function DcDetail({
   const precision =
     dc.precision === "site"
       ? "Placed at or near the named site."
-      : "Approximate: placed within the township, borough or city.";
+      : "Approximate: placed within the township, borough or city. Where several projects share one, their pins are spread apart so each can be selected, so the position inside it means nothing.";
   const places = dc.places ?? [];
 
   return (

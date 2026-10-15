@@ -23,6 +23,7 @@ Everything here is public geography, public statistics, and public reporting. No
 Miner data is read or written, which is why the public /map route may import these files (see
 ARCHITECTURE.md).
 """
+import hashlib
 import json
 import math
 import os
@@ -188,8 +189,20 @@ export interface DataCenter {
 
 
 def fetch_json(url):
+    """Download JSON, caching a copy so a later build works when the host is down."""
+    cached = CACHE_DIR / "http" / (hashlib.sha256(url.encode()).hexdigest()[:24] + ".json")
     req = urllib.request.Request(url, headers={"User-Agent": "pa-grid-monitor-map-build/1.0"})
-    return json.load(urllib.request.urlopen(req, timeout=120))
+    try:
+        body = urllib.request.urlopen(req, timeout=120).read()
+    except OSError:
+        if cached.exists():
+            print(f"  (host unreachable, using cached copy of {url[:80]})")
+            return json.loads(cached.read_text(encoding="utf-8"))
+        raise
+    data = json.loads(body)
+    cached.parent.mkdir(parents=True, exist_ok=True)
+    cached.write_bytes(body)
+    return data
 
 
 def polys(geom):
