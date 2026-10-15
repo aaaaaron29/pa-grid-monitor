@@ -636,6 +636,27 @@ in the README rather than papered over with a precision/recall number that doesn
     calibrates its own floor per zone on that zone's train data) was unaffected by this and
     performed consistently across all five -- the gap is specific to the fixed-magnitude
     synthetic test, not the detector.
+  - **The out-of-sample flag rate (2026-10-15).** The private page showed about 3% of
+    intervals flagged against a 1% budget, and nothing in the evaluation above reported the
+    realized flag rate on data the threshold was not calibrated on, so
+    `scripts/evaluate_flag_rate_pjm.py` now does, per zone, with event counts. Results across
+    the five zones: validation 1.00% (by construction), the frozen test window (2026-09-20
+    to 10-13) **0.47%**, and the post-freeze days 10-13 to 10-15 **5.9%**. The detector is
+    calibrated and slightly conservative on the test window. The post-freeze figure is
+    one volatile stretch, not drift: it is about 12 distinct events over 3 days across all
+    five zones, 72% of the flagged intervals fall on prices that are themselves beyond
+    +/-$300/MWh, and those prices are verified settlement-quality values, not provisional
+    ones (about 2% of all verified intervals since September exceed $300 in absolute value,
+    so spikes are ordinary here and cluster). A flag rate over a few days therefore says
+    mostly how volatile those days were; the budget is a statement about a calm calibration
+    window, and event counts are the number to quote.
+    A second effect is real but small: the one-week seasonal-naive baseline replays a spike a
+    week later, so a calm interval one week after a spike is flagged as a surprise (an
+    "echo", 10 of 247 post-freeze flags). A baseline using the median of the last three
+    weeks removes most of them (10 to 2) but moves the test rate only from 0.47% to 0.40%
+    and the post-freeze rate from 5.9% to 5.6%, so it was not adopted; the script prints
+    both so the decision stays checkable. One caveat on process: the post-freeze window was
+    looked at while diagnosing this, so it is not a clean holdout for the comparison.
 
 ### Retraining, drift, and cold start
 
