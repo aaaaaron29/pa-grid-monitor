@@ -57,7 +57,7 @@ export function StatTile({ label, value, sub }: { label: string; value: ReactNod
       <div className="mb-1.5 text-[0.78rem]" style={{ color: "var(--ink-2)" }}>
         {label}
       </div>
-      <div className="text-[1.45rem] leading-tight font-bold tabular-nums">{value}</div>
+      <div className="text-[1.45rem] leading-tight font-bold tabular-nums text-[var(--ink-1)]">{value}</div>
       {sub && (
         <div className="mt-1 text-[0.78rem]" style={{ color: "var(--ink-2)" }}>
           {sub}

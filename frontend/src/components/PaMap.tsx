@@ -542,7 +542,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="p-2.5" style={{ background: "var(--surface-1)" }}>
       <dt style={{ color: "var(--ink-2)" }}>{label}</dt>
-      <dd className="font-bold tabular-nums">{value}</dd>
+      <dd className="font-bold tabular-nums text-[var(--ink-1)]">{value}</dd>
     </div>
   );
 }
@@ -557,7 +557,7 @@ function ProjectList({ dcs, select, showUtility = false }: { dcs: DataCenter[]; 
             onClick={() => select({ kind: "dc", id: dc.id })}
             className="block w-full py-2 text-left hover:text-[var(--blue)]"
           >
-            <span className="block text-[0.9rem] font-semibold">
+            <span className="block text-[0.9rem] font-semibold text-[var(--ink-1)]">
               {dc.name}
               {dc.ended ? (
                 <span className="ml-2 rounded border px-1.5 py-px align-middle text-[0.68rem] font-semibold uppercase tracking-wide" style={{ borderColor: "var(--baseline)", color: "var(--ink-2)" }}>
@@ -596,7 +596,7 @@ function DcDetail({ dc, onBack, select }: { dc: DataCenter; onBack: () => void; 
               {f.label}
               {f.note ? <span className="block text-[0.75rem]">{f.note}</span> : null}
             </dt>
-            <dd className="text-right font-bold tabular-nums">{f.value}</dd>
+            <dd className="text-right font-bold tabular-nums text-[var(--ink-1)]">{f.value}</dd>
           </div>
         ))}
       </dl>

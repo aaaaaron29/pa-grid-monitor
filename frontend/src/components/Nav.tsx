@@ -27,7 +27,7 @@ export function Nav() {
   return (
     <header className="border-b" style={{ borderColor: "var(--border)" }}>
       <div className="mx-auto flex max-w-[1100px] flex-wrap items-center justify-between gap-x-6 gap-y-1 px-4 py-4">
-        <Link href="/" className="font-bold">
+        <Link href="/" className="font-bold text-[var(--ink-1)]">
           Grid Watch
         </Link>
         <nav aria-label="Primary" className="flex gap-5 text-sm">

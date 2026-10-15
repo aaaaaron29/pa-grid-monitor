@@ -7,6 +7,9 @@
   --surface-1: #fcfcfb;
   --page: #f9f9f7;
   --ink-1: #0b0b0b;
+  /* Running text: a step softer than headings (ink-1) and a step firmer than secondary text
+     (ink-2). About 11:1 on the page color, well above the 4.5:1 minimum. */
+  --ink-body: #3a3935;
   --ink-2: #52514e;
   --ink-muted: #898781;
   --grid: #e1e0d9;
@@ -28,6 +31,7 @@
     --surface-1: #1a1a19;
     --page: #0d0d0d;
     --ink-1: #f0efec;
+    --ink-body: #d2d1cb;
     --ink-2: #c3c2b7;
     --ink-muted: #898781;
     --grid: #2c2c2a;
@@ -60,7 +64,7 @@
 
   body {
     background: var(--page);
-    color: var(--ink-1);
+    color: var(--ink-body);
     font: 16px/1.6 var(--font-geist-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
     font-variant-numeric: lining-nums;
   }
@@ -74,6 +78,16 @@
   h2,
   h3 {
     text-wrap: balance;
+  }
+
+  /* Headings and bold lead-ins keep the full-strength ink; running text is a step softer. */
+  h1,
+  h2,
+  h3,
+  h4,
+  b,
+  strong {
+    color: var(--ink-1);
   }
 
   /* Tailwind's preflight zeroes paragraph margins; restore a reading rhythm. */
