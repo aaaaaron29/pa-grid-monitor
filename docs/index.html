@@ -181,7 +181,8 @@
     <h1>Are Pennsylvania's utilities delivering on their data center promises?</h1>
     <p style="font-size:1.05rem; color:var(--ink-1);">PPL Electric has told regulators and investors, repeatedly and on the record, how much new power demand is coming. PJM's own grid data is the only honest way to check if that's actually happening.</p>
     <div class="hero-stat"><b>31.8 GW</b> PPL's own pipeline figure, Q2 2026</div>
-    <div class="hero-stat"><b>204,532</b> real hourly readings behind this page</div>
+    <div class="hero-stat"><b>+3%</b> PPL zone-wide load growth actually measured, same window</div>
+    <div class="hero-stat"><b>326,472</b> real hourly readings behind this page</div>
   </section>
 
   <section class="col">
@@ -340,12 +341,63 @@
     <p class="col" style="margin-top: 14px; font-size: 0.86rem;">Worth sitting with: PPL isn't the outlier in this price table. It's priced similarly to PECO, and both sit below METED, PENELEC, and DUQ. Price is driven by a lot more than local demand growth (fuel costs, congestion, weather), which is exactly why price alone won't settle the data-center question. That needs actual zone-level <em>load</em> data, not price. See below.</p>
   </section>
 
+  <section class="wrap">
+    <div class="eyebrow col">The actual comparison</div>
+    <h2 class="col">Promises vs. measured reality</h2>
+    <p class="col">PJM's <code>hrl_load_metered</code> feed is now ingested: real zone-level metered demand, hourly, back to December 2023, for all five PA zones. Here is PPL's actual zone-wide load laid against the same claims timeline above.</p>
+
+    <div class="stats" style="margin-top: 8px; grid-template-columns: repeat(3, 1fr);">
+      <div class="stat">
+        <div class="stat-label">PPL avg load, Jan&ndash;Oct</div>
+        <div class="stat-value">+3.0%</div>
+        <div class="stat-sub">2024 &rarr; 2026 (4,656 &rarr; 4,797 MW)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">PPL peak load, Jan&ndash;Oct</div>
+        <div class="stat-value">+4.0%</div>
+        <div class="stat-sub">2024 &rarr; 2026 (7,460 &rarr; 7,755 MW)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Signed pipeline, same window</div>
+        <div class="stat-value">~3 &rarr; 31.8 GW</div>
+        <div class="stat-sub">PPL's own reported figures</div>
+      </div>
+    </div>
+
+    <div class="chart-card" style="margin-top: 20px;">
+      <div class="chart-head">
+        <div>
+          <div class="chart-title">PPL zone load, monthly average &amp; peak</div>
+          <div class="chart-meta">PJM hrl_load_metered, Dec 2023&ndash;Oct 2026</div>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <svg class="chart" id="chart-ppl-load" viewBox="0 0 700 260" preserveAspectRatio="none"></svg>
+        <div class="tooltip" id="tooltip-ppl-load"></div>
+      </div>
+      <div class="legend">
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--blue)"></span>Monthly average (MW)</div>
+        <div class="legend-item"><span class="legend-swatch" style="background:var(--aqua)"></span>Monthly peak (MW)</div>
+      </div>
+      <p style="font-size: 0.78rem; color: var(--ink-muted); margin: 10px 0 0;">Numbered markers: <b>1</b> Q1'24 ~3GW signed &middot; <b>2</b> Aug'25 800MW-by-2026 / 14.4GW-by-2034 forecast &middot; <b>3</b> Q4'25 25.2GW signed &middot; <b>4</b> Jan'26 PJM peak forecast raised to 12,000MW &middot; <b>5</b> Q2'26 31.8GW pipeline</p>
+    </div>
+
+    <p class="col" style="margin-top: 20px;">The seasonal pattern (winter and summer peaks, spring/fall troughs) is the normal shape of electricity demand and has nothing to do with data centers. What matters is whether that pattern is climbing over time. Through October 2026 it mostly isn't, at least not at zone-wide scale: average and peak load both sit within a few percent of where they were when the pipeline claims started, while the claims themselves grew roughly tenfold.</p>
+
+    <div class="callout" style="margin-top: 16px;">
+      <h3>Why this isn't "PPL is lying"</h3>
+      <p style="margin-bottom:0;">Signed and pipeline agreements are not the same thing as load already drawing power. Data center interconnection and construction routinely takes several years, and PPL's own numbers distinguish "signed" (11 GW) from "under construction" (6.5 GW) from total pipeline (31.8 GW) for exactly this reason. A zone-wide total also can't separate new data-center load from anything else happening in a 29-county territory. The honest read of this chart isn't "the promises are false," it's "the promised load hasn't landed yet, at the zone-wide level, as of this snapshot." That gap is exactly what this project should keep tracking, quarter over quarter, as more of that 31.8 GW either comes online or doesn't.</p>
+    </div>
+
+    <p class="col" style="margin-top: 16px; font-size: 0.86rem;">One more honesty note on the data itself: PJM's feed never marks PPL's largest load component (PLCO, the bulk of the zone) as settlement-verified, unlike METED, PECO, and PENELEC. Duquesne's zone has the same gap. The numbers above are PJM's real metered readings, just ones PJM itself has not flagged as final.</p>
+  </section>
+
   <section class="col">
-    <div class="eyebrow">What's missing to actually answer the question</div>
-    <h2>The gap between this page and a real accountability tracker</h2>
+    <div class="eyebrow">What's still missing</div>
+    <h2>What would make this airtight</h2>
     <div class="status-note">
       <div class="status-dot"></div>
-      <div>The one piece that would make this rigorous is PJM's <code>hrl_load_metered</code> feed, real zone-level metered demand in MW, and it isn't ingested yet. It uses the same PJM Data Miner 2 API and subscription key already in use for LMP data, so it's a scoped addition, not a new integration. Until it exists, this page shows real anomaly detection on PJM-wide demand and real PPL price data, but not yet the direct "did PPL's load grow the way they said it would" comparison.</div>
+      <div>Zone-wide totals can show whether PPL's territory as a whole is growing the way the pipeline claims imply, but they can't show whether any specific signed project has actually been energized. That needs either substation-level data (not public) or a dated, named project list with in-service status, which would have to come from PPL's own interconnection queue or regulatory filings, not PJM's aggregate feed. Until that exists, this page can say "the zone-wide number hasn't moved much yet," not "project X never got built."</div>
     </div>
   </section>
 
@@ -372,7 +424,7 @@
   </section>
 
   <footer class="col">
-    Working draft. The charts and numbers above are a real snapshot pulled from the live pipeline on 2026-10-14, not a live feed, so they won't update on this page. Everything above the "what's missing" section is real; the promises-vs-reality comparison itself is the next thing to build, not a finished product.
+    Working draft. Every chart and number above, including the promises-vs-reality comparison, is a real snapshot pulled from the live pipeline on 2026-10-15, not a live feed, so none of it updates on this page. The page itself is still a static mock, not the real frontend; that's the next thing to build.
   </footer>
 
 </div>
@@ -380,6 +432,9 @@
 <script>
 (function() {
   var DEMAND = [{"t": "2026-10-07 18:00:00-04", "v": 94274.0, "flagged": false}, {"t": "2026-10-07 19:00:00-04", "v": 95021.0, "flagged": false}, {"t": "2026-10-07 20:00:00-04", "v": 95755.0, "flagged": false}, {"t": "2026-10-07 21:00:00-04", "v": 94269.0, "flagged": false}, {"t": "2026-10-07 22:00:00-04", "v": 90712.0, "flagged": false}, {"t": "2026-10-07 23:00:00-04", "v": 86016.0, "flagged": false}, {"t": "2026-10-08 00:00:00-04", "v": 81333.0, "flagged": false}, {"t": "2026-10-08 01:00:00-04", "v": 78089.0, "flagged": false}, {"t": "2026-10-08 02:00:00-04", "v": 76731.0, "flagged": false}, {"t": "2026-10-08 03:00:00-04", "v": 75203.0, "flagged": false}, {"t": "2026-10-08 04:00:00-04", "v": 74578.0, "flagged": false}, {"t": "2026-10-08 05:00:00-04", "v": 75034.0, "flagged": false}, {"t": "2026-10-08 06:00:00-04", "v": 76939.0, "flagged": false}, {"t": "2026-10-08 07:00:00-04", "v": 82316.0, "flagged": false}, {"t": "2026-10-08 08:00:00-04", "v": 86371.0, "flagged": false}, {"t": "2026-10-08 09:00:00-04", "v": 86471.0, "flagged": false}, {"t": "2026-10-08 10:00:00-04", "v": 87014.0, "flagged": false}, {"t": "2026-10-08 11:00:00-04", "v": 88057.0, "flagged": false}, {"t": "2026-10-08 12:00:00-04", "v": 88131.0, "flagged": false}, {"t": "2026-10-08 13:00:00-04", "v": 89023.0, "flagged": false}, {"t": "2026-10-08 14:00:00-04", "v": 90683.0, "flagged": false}, {"t": "2026-10-08 15:00:00-04", "v": 92038.0, "flagged": false}, {"t": "2026-10-08 16:00:00-04", "v": 93442.0, "flagged": false}, {"t": "2026-10-08 17:00:00-04", "v": 94941.0, "flagged": false}, {"t": "2026-10-08 18:00:00-04", "v": 96389.0, "flagged": false}, {"t": "2026-10-08 19:00:00-04", "v": 96294.0, "flagged": false}, {"t": "2026-10-08 20:00:00-04", "v": 96325.0, "flagged": false}, {"t": "2026-10-08 21:00:00-04", "v": 93965.0, "flagged": false}, {"t": "2026-10-08 22:00:00-04", "v": 90168.0, "flagged": false}, {"t": "2026-10-08 23:00:00-04", "v": 85525.0, "flagged": false}, {"t": "2026-10-09 00:00:00-04", "v": 81028.0, "flagged": false}, {"t": "2026-10-09 01:00:00-04", "v": 77775.0, "flagged": false}, {"t": "2026-10-09 02:00:00-04", "v": 76010.0, "flagged": false}, {"t": "2026-10-09 03:00:00-04", "v": 75601.0, "flagged": false}, {"t": "2026-10-09 04:00:00-04", "v": 74619.0, "flagged": false}, {"t": "2026-10-09 05:00:00-04", "v": 75143.0, "flagged": false}, {"t": "2026-10-09 06:00:00-04", "v": 76194.0, "flagged": false}, {"t": "2026-10-09 07:00:00-04", "v": 81631.0, "flagged": false}, {"t": "2026-10-09 08:00:00-04", "v": 85726.0, "flagged": false}, {"t": "2026-10-09 09:00:00-04", "v": 86701.0, "flagged": false}, {"t": "2026-10-09 10:00:00-04", "v": 87536.0, "flagged": false}, {"t": "2026-10-09 11:00:00-04", "v": 88047.0, "flagged": false}, {"t": "2026-10-09 12:00:00-04", "v": 88527.0, "flagged": false}, {"t": "2026-10-09 13:00:00-04", "v": 88793.0, "flagged": false}, {"t": "2026-10-09 14:00:00-04", "v": 89652.0, "flagged": false}, {"t": "2026-10-09 15:00:00-04", "v": 90284.0, "flagged": false}, {"t": "2026-10-09 16:00:00-04", "v": 90876.0, "flagged": false}, {"t": "2026-10-09 17:00:00-04", "v": 91581.0, "flagged": false}, {"t": "2026-10-09 18:00:00-04", "v": 92323.0, "flagged": false}, {"t": "2026-10-09 19:00:00-04", "v": 92199.0, "flagged": false}, {"t": "2026-10-09 20:00:00-04", "v": 92331.0, "flagged": false}, {"t": "2026-10-09 21:00:00-04", "v": 90561.0, "flagged": false}, {"t": "2026-10-09 22:00:00-04", "v": 87622.0, "flagged": false}, {"t": "2026-10-09 23:00:00-04", "v": 84219.0, "flagged": false}, {"t": "2026-10-10 00:00:00-04", "v": 80423.0, "flagged": false}, {"t": "2026-10-10 01:00:00-04", "v": 77651.0, "flagged": false}, {"t": "2026-10-10 02:00:00-04", "v": 76567.0, "flagged": false}, {"t": "2026-10-10 03:00:00-04", "v": 75642.0, "flagged": false}, {"t": "2026-10-10 04:00:00-04", "v": 74578.0, "flagged": false}, {"t": "2026-10-10 05:00:00-04", "v": 74049.0, "flagged": false}, {"t": "2026-10-10 06:00:00-04", "v": 74883.0, "flagged": false}, {"t": "2026-10-10 07:00:00-04", "v": 76542.0, "flagged": false}, {"t": "2026-10-10 08:00:00-04", "v": 78303.0, "flagged": false}, {"t": "2026-10-10 09:00:00-04", "v": 80185.0, "flagged": false}, {"t": "2026-10-10 10:00:00-04", "v": 81256.0, "flagged": false}, {"t": "2026-10-10 11:00:00-04", "v": 81885.0, "flagged": false}, {"t": "2026-10-10 12:00:00-04", "v": 81926.0, "flagged": false}, {"t": "2026-10-10 13:00:00-04", "v": 82274.0, "flagged": false}, {"t": "2026-10-10 14:00:00-04", "v": 81872.0, "flagged": false}, {"t": "2026-10-10 15:00:00-04", "v": 82133.0, "flagged": false}, {"t": "2026-10-10 16:00:00-04", "v": 82790.0, "flagged": false}, {"t": "2026-10-10 17:00:00-04", "v": 84319.0, "flagged": false}, {"t": "2026-10-10 18:00:00-04", "v": 85267.0, "flagged": false}, {"t": "2026-10-10 19:00:00-04", "v": 86530.0, "flagged": false}, {"t": "2026-10-10 20:00:00-04", "v": 87558.0, "flagged": false}, {"t": "2026-10-10 21:00:00-04", "v": 86487.0, "flagged": false}, {"t": "2026-10-10 22:00:00-04", "v": 84317.0, "flagged": false}, {"t": "2026-10-10 23:00:00-04", "v": 81435.0, "flagged": false}, {"t": "2026-10-11 00:00:00-04", "v": 78922.0, "flagged": false}, {"t": "2026-10-11 01:00:00-04", "v": 77182.0, "flagged": false}, {"t": "2026-10-11 02:00:00-04", "v": 75489.0, "flagged": false}, {"t": "2026-10-11 03:00:00-04", "v": 74145.0, "flagged": false}, {"t": "2026-10-11 04:00:00-04", "v": 73165.0, "flagged": false}, {"t": "2026-10-11 05:00:00-04", "v": 72760.0, "flagged": false}, {"t": "2026-10-11 06:00:00-04", "v": 73346.0, "flagged": false}, {"t": "2026-10-11 07:00:00-04", "v": 75066.0, "flagged": false}, {"t": "2026-10-11 08:00:00-04", "v": 77125.0, "flagged": false}, {"t": "2026-10-11 09:00:00-04", "v": 78694.0, "flagged": false}, {"t": "2026-10-11 10:00:00-04", "v": 81220.0, "flagged": false}, {"t": "2026-10-11 11:00:00-04", "v": 83175.0, "flagged": false}, {"t": "2026-10-11 12:00:00-04", "v": 85076.0, "flagged": false}, {"t": "2026-10-11 13:00:00-04", "v": 86396.0, "flagged": false}, {"t": "2026-10-11 14:00:00-04", "v": 86850.0, "flagged": false}, {"t": "2026-10-11 15:00:00-04", "v": 86978.0, "flagged": false}, {"t": "2026-10-11 16:00:00-04", "v": 87490.0, "flagged": false}, {"t": "2026-10-11 17:00:00-04", "v": 88596.0, "flagged": false}, {"t": "2026-10-11 18:00:00-04", "v": 90246.0, "flagged": false}, {"t": "2026-10-11 19:00:00-04", "v": 91171.0, "flagged": false}, {"t": "2026-10-11 20:00:00-04", "v": 91870.0, "flagged": false}, {"t": "2026-10-11 21:00:00-04", "v": 90299.0, "flagged": false}, {"t": "2026-10-11 22:00:00-04", "v": 87284.0, "flagged": false}, {"t": "2026-10-11 23:00:00-04", "v": 83792.0, "flagged": false}, {"t": "2026-10-12 00:00:00-04", "v": 80556.0, "flagged": false}, {"t": "2026-10-12 01:00:00-04", "v": 78430.0, "flagged": false}, {"t": "2026-10-12 02:00:00-04", "v": 77062.0, "flagged": false}, {"t": "2026-10-12 03:00:00-04", "v": 75686.0, "flagged": false}, {"t": "2026-10-12 04:00:00-04", "v": 75048.0, "flagged": false}, {"t": "2026-10-12 05:00:00-04", "v": 75748.0, "flagged": false}, {"t": "2026-10-12 06:00:00-04", "v": 78383.0, "flagged": false}, {"t": "2026-10-12 07:00:00-04", "v": 82700.0, "flagged": false}, {"t": "2026-10-12 08:00:00-04", "v": 85956.0, "flagged": false}, {"t": "2026-10-12 09:00:00-04", "v": 87837.0, "flagged": false}, {"t": "2026-10-12 10:00:00-04", "v": 89378.0, "flagged": false}, {"t": "2026-10-12 11:00:00-04", "v": 90242.0, "flagged": false}, {"t": "2026-10-12 12:00:00-04", "v": 91125.0, "flagged": false}, {"t": "2026-10-12 13:00:00-04", "v": 91934.0, "flagged": false}, {"t": "2026-10-12 14:00:00-04", "v": 93498.0, "flagged": false}, {"t": "2026-10-12 15:00:00-04", "v": 95489.0, "flagged": false}, {"t": "2026-10-12 16:00:00-04", "v": 98012.0, "flagged": false}, {"t": "2026-10-12 17:00:00-04", "v": 100253.0, "flagged": false}, {"t": "2026-10-12 18:00:00-04", "v": 102698.0, "flagged": false}, {"t": "2026-10-12 19:00:00-04", "v": 102852.0, "flagged": true}, {"t": "2026-10-12 20:00:00-04", "v": 102735.0, "flagged": false}, {"t": "2026-10-12 21:00:00-04", "v": 100335.0, "flagged": false}, {"t": "2026-10-12 22:00:00-04", "v": 96164.0, "flagged": false}, {"t": "2026-10-12 23:00:00-04", "v": 90825.0, "flagged": false}, {"t": "2026-10-13 00:00:00-04", "v": 86263.0, "flagged": false}, {"t": "2026-10-13 01:00:00-04", "v": 83930.0, "flagged": false}, {"t": "2026-10-13 02:00:00-04", "v": 81587.0, "flagged": false}, {"t": "2026-10-13 03:00:00-04", "v": 79531.0, "flagged": false}, {"t": "2026-10-13 04:00:00-04", "v": 78565.0, "flagged": false}, {"t": "2026-10-13 05:00:00-04", "v": 79050.0, "flagged": false}, {"t": "2026-10-13 06:00:00-04", "v": 82063.0, "flagged": false}, {"t": "2026-10-13 07:00:00-04", "v": 86796.0, "flagged": false}, {"t": "2026-10-13 08:00:00-04", "v": 90893.0, "flagged": false}, {"t": "2026-10-13 09:00:00-04", "v": 91751.0, "flagged": false}, {"t": "2026-10-13 10:00:00-04", "v": 92079.0, "flagged": false}, {"t": "2026-10-13 11:00:00-04", "v": 92881.0, "flagged": false}, {"t": "2026-10-13 12:00:00-04", "v": 94026.0, "flagged": false}, {"t": "2026-10-13 13:00:00-04", "v": 96368.0, "flagged": false}, {"t": "2026-10-13 14:00:00-04", "v": 100015.0, "flagged": false}, {"t": "2026-10-13 15:00:00-04", "v": 102745.0, "flagged": false}, {"t": "2026-10-13 16:00:00-04", "v": 105148.0, "flagged": false}, {"t": "2026-10-13 17:00:00-04", "v": 107281.0, "flagged": false}, {"t": "2026-10-13 18:00:00-04", "v": 108122.0, "flagged": false}, {"t": "2026-10-13 19:00:00-04", "v": 107394.0, "flagged": false}, {"t": "2026-10-13 20:00:00-04", "v": 106596.0, "flagged": false}, {"t": "2026-10-13 21:00:00-04", "v": 103785.0, "flagged": false}, {"t": "2026-10-13 22:00:00-04", "v": 100465.0, "flagged": false}, {"t": "2026-10-13 23:00:00-04", "v": 95242.0, "flagged": false}, {"t": "2026-10-14 00:00:00-04", "v": 90147.0, "flagged": false}, {"t": "2026-10-14 01:00:00-04", "v": 86863.0, "flagged": false}, {"t": "2026-10-14 02:00:00-04", "v": 84346.0, "flagged": false}, {"t": "2026-10-14 03:00:00-04", "v": 81981.0, "flagged": true}, {"t": "2026-10-14 04:00:00-04", "v": 80779.0, "flagged": false}, {"t": "2026-10-14 05:00:00-04", "v": 81006.0, "flagged": false}, {"t": "2026-10-14 06:00:00-04", "v": 84203.0, "flagged": false}, {"t": "2026-10-14 07:00:00-04", "v": 88637.0, "flagged": false}, {"t": "2026-10-14 08:00:00-04", "v": 92109.0, "flagged": false}, {"t": "2026-10-14 09:00:00-04", "v": 93250.0, "flagged": false}, {"t": "2026-10-14 10:00:00-04", "v": 95317.0, "flagged": false}, {"t": "2026-10-14 11:00:00-04", "v": 97596.0, "flagged": false}, {"t": "2026-10-14 12:00:00-04", "v": 100289.0, "flagged": false}, {"t": "2026-10-14 13:00:00-04", "v": 103063.0, "flagged": false}, {"t": "2026-10-14 14:00:00-04", "v": 105045.0, "flagged": false}, {"t": "2026-10-14 15:00:00-04", "v": 106122.0, "flagged": false}, {"t": "2026-10-14 16:00:00-04", "v": 106879.0, "flagged": false}];
+  var PPL_LOAD = [{"m": "2023-12", "avg": 4479.9, "peak": 4771.4}, {"m": "2024-01", "avg": 5333.2, "peak": 7139.7}, {"m": "2024-02", "avg": 4951.1, "peak": 6377.5}, {"m": "2024-03", "avg": 4444.8, "peak": 5956.1}, {"m": "2024-04", "avg": 4140.5, "peak": 5267.0}, {"m": "2024-05", "avg": 4157.3, "peak": 5933.9}, {"m": "2024-06", "avg": 4803.6, "peak": 7041.8}, {"m": "2024-07", "avg": 5268.5, "peak": 7459.6}, {"m": "2024-08", "avg": 4854.7, "peak": 7009.9}, {"m": "2024-09", "avg": 4188.1, "peak": 5591.5}, {"m": "2024-10", "avg": 3998.0, "peak": 4998.1}, {"m": "2024-11", "avg": 4314.7, "peak": 5584.4}, {"m": "2024-12", "avg": 5258.6, "peak": 7147.6}, {"m": "2025-01", "avg": 5843.9, "peak": 8057.0}, {"m": "2025-02", "avg": 5504.6, "peak": 7199.3}, {"m": "2025-03", "avg": 4490.0, "peak": 6245.5}, {"m": "2025-04", "avg": 4165.7, "peak": 5760.0}, {"m": "2025-05", "avg": 3990.0, "peak": 4949.6}, {"m": "2025-06", "avg": 4765.7, "peak": 7582.6}, {"m": "2025-07", "avg": 5409.4, "peak": 7465.8}, {"m": "2025-08", "avg": 4666.8, "peak": 7099.6}, {"m": "2025-09", "avg": 4264.1, "peak": 5560.0}, {"m": "2025-10", "avg": 4047.4, "peak": 5204.6}, {"m": "2025-11", "avg": 4489.5, "peak": 5719.0}, {"m": "2025-12", "avg": 5491.5, "peak": 7235.8}, {"m": "2026-01", "avg": 5788.3, "peak": 7753.7}, {"m": "2026-02", "avg": 5708.6, "peak": 7755.0}, {"m": "2026-03", "avg": 4573.6, "peak": 6273.6}, {"m": "2026-04", "avg": 4087.9, "peak": 5588.6}, {"m": "2026-05", "avg": 4090.0, "peak": 6560.6}, {"m": "2026-06", "avg": 4671.8, "peak": 6993.5}, {"m": "2026-07", "avg": 5200.5, "peak": 7632.4}, {"m": "2026-08", "avg": 4946.8, "peak": 7061.4}, {"m": "2026-09", "avg": 4454.4, "peak": 6737.7}, {"m": "2026-10", "avg": 4012.8, "peak": 5372.3}];
+  var PPL_ANNOTATIONS = [{"i": 1, "label": "1"}, {"i": 20, "label": "2"}, {"i": 24, "label": "3"}, {"i": 25, "label": "4"}, {"i": 30, "label": "5"}];
+
   var PPL = [{"t": "2026-10-07 18:00:00-04", "v": 329.59}, {"t": "2026-10-07 19:00:00-04", "v": 201.69}, {"t": "2026-10-07 20:00:00-04", "v": 30.76}, {"t": "2026-10-07 21:00:00-04", "v": 22.82}, {"t": "2026-10-07 22:00:00-04", "v": 20.59}, {"t": "2026-10-07 23:00:00-04", "v": 11.2}, {"t": "2026-10-08 00:00:00-04", "v": 38.07}, {"t": "2026-10-08 01:00:00-04", "v": 17.14}, {"t": "2026-10-08 02:00:00-04", "v": 17.62}, {"t": "2026-10-08 03:00:00-04", "v": 16.35}, {"t": "2026-10-08 04:00:00-04", "v": 16.94}, {"t": "2026-10-08 05:00:00-04", "v": 18.65}, {"t": "2026-10-08 06:00:00-04", "v": 26.76}, {"t": "2026-10-08 07:00:00-04", "v": 48.41}, {"t": "2026-10-08 08:00:00-04", "v": 35.44}, {"t": "2026-10-08 09:00:00-04", "v": 24.22}, {"t": "2026-10-08 10:00:00-04", "v": 28.89}, {"t": "2026-10-08 11:00:00-04", "v": 24.46}, {"t": "2026-10-08 12:00:00-04", "v": 25.95}, {"t": "2026-10-08 13:00:00-04", "v": 29.22}, {"t": "2026-10-08 14:00:00-04", "v": 29.32}, {"t": "2026-10-08 15:00:00-04", "v": 26.88}, {"t": "2026-10-08 16:00:00-04", "v": 17.34}, {"t": "2026-10-08 17:00:00-04", "v": 7.65}, {"t": "2026-10-08 18:00:00-04", "v": 32.54}, {"t": "2026-10-08 19:00:00-04", "v": -2.32}, {"t": "2026-10-08 20:00:00-04", "v": 49.63}, {"t": "2026-10-08 21:00:00-04", "v": 18.83}, {"t": "2026-10-08 22:00:00-04", "v": 13.22}, {"t": "2026-10-08 23:00:00-04", "v": 20.43}, {"t": "2026-10-09 00:00:00-04", "v": 28.3}, {"t": "2026-10-09 01:00:00-04", "v": 32.86}, {"t": "2026-10-09 02:00:00-04", "v": 24.29}, {"t": "2026-10-09 03:00:00-04", "v": 22.77}, {"t": "2026-10-09 04:00:00-04", "v": 22.14}, {"t": "2026-10-09 05:00:00-04", "v": 25.33}, {"t": "2026-10-09 06:00:00-04", "v": 51.85}, {"t": "2026-10-09 07:00:00-04", "v": 43.54}, {"t": "2026-10-09 08:00:00-04", "v": 67.73}, {"t": "2026-10-09 09:00:00-04", "v": 28.35}, {"t": "2026-10-09 10:00:00-04", "v": 35.7}, {"t": "2026-10-09 11:00:00-04", "v": 29.0}, {"t": "2026-10-09 12:00:00-04", "v": 20.3}, {"t": "2026-10-09 13:00:00-04", "v": 17.35}, {"t": "2026-10-09 14:00:00-04", "v": 42.74}, {"t": "2026-10-09 15:00:00-04", "v": 22.5}, {"t": "2026-10-09 16:00:00-04", "v": 15.57}, {"t": "2026-10-09 17:00:00-04", "v": 15.35}, {"t": "2026-10-09 18:00:00-04", "v": 13.07}, {"t": "2026-10-09 19:00:00-04", "v": 10.52}, {"t": "2026-10-09 20:00:00-04", "v": 26.37}, {"t": "2026-10-09 21:00:00-04", "v": 38.45}, {"t": "2026-10-09 22:00:00-04", "v": 25.92}, {"t": "2026-10-09 23:00:00-04", "v": 44.66}, {"t": "2026-10-10 00:00:00-04", "v": 32.71}, {"t": "2026-10-10 01:00:00-04", "v": 24.51}, {"t": "2026-10-10 02:00:00-04", "v": 27.49}, {"t": "2026-10-10 03:00:00-04", "v": 21.98}, {"t": "2026-10-10 04:00:00-04", "v": 23.81}, {"t": "2026-10-10 05:00:00-04", "v": 86.75}, {"t": "2026-10-10 06:00:00-04", "v": 39.54}, {"t": "2026-10-10 07:00:00-04", "v": 112.46}, {"t": "2026-10-10 08:00:00-04", "v": 57.41}, {"t": "2026-10-10 09:00:00-04", "v": 22.61}, {"t": "2026-10-10 10:00:00-04", "v": 20.14}, {"t": "2026-10-10 11:00:00-04", "v": 16.49}, {"t": "2026-10-10 12:00:00-04", "v": 14.57}, {"t": "2026-10-10 13:00:00-04", "v": 14.27}, {"t": "2026-10-10 14:00:00-04", "v": 15.12}, {"t": "2026-10-10 15:00:00-04", "v": 10.97}, {"t": "2026-10-10 16:00:00-04", "v": 12.6}, {"t": "2026-10-10 17:00:00-04", "v": -14.9}, {"t": "2026-10-10 18:00:00-04", "v": -23.45}, {"t": "2026-10-10 19:00:00-04", "v": 24.09}, {"t": "2026-10-10 20:00:00-04", "v": 15.92}, {"t": "2026-10-10 21:00:00-04", "v": 6.54}, {"t": "2026-10-10 22:00:00-04", "v": -27.27}, {"t": "2026-10-10 23:00:00-04", "v": 6.08}, {"t": "2026-10-11 00:00:00-04", "v": 23.82}, {"t": "2026-10-11 01:00:00-04", "v": 17.25}, {"t": "2026-10-11 02:00:00-04", "v": 15.86}, {"t": "2026-10-11 03:00:00-04", "v": 18.26}, {"t": "2026-10-11 04:00:00-04", "v": 16.34}, {"t": "2026-10-11 05:00:00-04", "v": 19.23}, {"t": "2026-10-11 06:00:00-04", "v": 18.37}, {"t": "2026-10-11 07:00:00-04", "v": 50.94}, {"t": "2026-10-11 08:00:00-04", "v": 58.98}, {"t": "2026-10-11 09:00:00-04", "v": 55.38}, {"t": "2026-10-11 10:00:00-04", "v": 29.52}, {"t": "2026-10-11 11:00:00-04", "v": 31.45}, {"t": "2026-10-11 12:00:00-04", "v": 33.57}, {"t": "2026-10-11 13:00:00-04", "v": 50.63}, {"t": "2026-10-11 14:00:00-04", "v": 28.74}, {"t": "2026-10-11 15:00:00-04", "v": 24.78}, {"t": "2026-10-11 16:00:00-04", "v": 21.81}, {"t": "2026-10-11 17:00:00-04", "v": 16.99}, {"t": "2026-10-11 18:00:00-04", "v": 8.12}, {"t": "2026-10-11 19:00:00-04", "v": 3.86}, {"t": "2026-10-11 20:00:00-04", "v": 15.37}, {"t": "2026-10-11 21:00:00-04", "v": 8.93}, {"t": "2026-10-11 22:00:00-04", "v": 4.39}, {"t": "2026-10-11 23:00:00-04", "v": 11.36}, {"t": "2026-10-12 00:00:00-04", "v": 16.49}, {"t": "2026-10-12 01:00:00-04", "v": 13.54}, {"t": "2026-10-12 02:00:00-04", "v": 9.45}, {"t": "2026-10-12 03:00:00-04", "v": 6.69}, {"t": "2026-10-12 04:00:00-04", "v": 11.11}, {"t": "2026-10-12 05:00:00-04", "v": 12.64}, {"t": "2026-10-12 06:00:00-04", "v": 12.55}, {"t": "2026-10-12 07:00:00-04", "v": 7.62}, {"t": "2026-10-12 08:00:00-04", "v": 29.22}, {"t": "2026-10-12 09:00:00-04", "v": 23.83}, {"t": "2026-10-12 10:00:00-04", "v": 20.08}, {"t": "2026-10-12 11:00:00-04", "v": 24.07}, {"t": "2026-10-12 12:00:00-04", "v": 20.73}, {"t": "2026-10-12 13:00:00-04", "v": 23.18}, {"t": "2026-10-12 14:00:00-04", "v": 15.83}, {"t": "2026-10-12 15:00:00-04", "v": 1.01}, {"t": "2026-10-12 16:00:00-04", "v": 28.93}, {"t": "2026-10-12 17:00:00-04", "v": 46.64}, {"t": "2026-10-12 18:00:00-04", "v": 38.73}, {"t": "2026-10-12 19:00:00-04", "v": 32.81}, {"t": "2026-10-12 20:00:00-04", "v": 20.19}, {"t": "2026-10-12 21:00:00-04", "v": 10.89}, {"t": "2026-10-12 22:00:00-04", "v": 5.51}, {"t": "2026-10-12 23:00:00-04", "v": 13.69}, {"t": "2026-10-13 19:00:00-04", "v": 1049.54}, {"t": "2026-10-13 21:00:00-04", "v": 1.53}, {"t": "2026-10-14 17:00:00-04", "v": 93.89}];
 
   function fmt(n) { return Math.round(n).toLocaleString('en-US'); }
@@ -489,6 +544,104 @@
 
   if (DEMAND.length) renderChart('chart-demand', 'tooltip-demand', DEMAND, 'var(--blue)', { flagKey: 'flagged' });
   if (PPL.length) renderChart('chart-ppl', 'tooltip-ppl', PPL, 'var(--orange)', { yFormat: function(v){ return '$' + Math.round(v); } });
+
+  // --- PPL monthly load chart: two series (avg, peak) + numbered claim-date annotations ---
+  function renderPplLoadChart(svgId, tooltipId, data, annotations) {
+    var svg = document.getElementById(svgId);
+    var tooltip = document.getElementById(tooltipId);
+    var W = 700, H = 260, padL = 50, padR = 14, padT = 30, padB = 26;
+    var plotW = W - padL - padR, plotH = H - padT - padB;
+
+    var allValues = [];
+    data.forEach(function(d) { allValues.push(d.avg, d.peak); });
+    var vMin = Math.min.apply(null, allValues), vMax = Math.max.apply(null, allValues);
+    var pad = (vMax - vMin) * 0.08 || 1;
+    vMin -= pad; vMax += pad;
+
+    function x(i) { return padL + (i / (data.length - 1)) * plotW; }
+    function y(v) { return padT + plotH - ((v - vMin) / (vMax - vMin)) * plotH; }
+
+    var ns = 'http://www.w3.org/2000/svg';
+    function el(tag, attrs) {
+      var e = document.createElementNS(ns, tag);
+      for (var k in attrs) e.setAttribute(k, attrs[k]);
+      return e;
+    }
+
+    svg.innerHTML = '';
+
+    var steps = 4;
+    for (var s = 0; s <= steps; s++) {
+      var v = vMin + (vMax - vMin) * (s / steps);
+      var yy = y(v);
+      svg.appendChild(el('line', { x1: padL, x2: W - padR, y1: yy, y2: yy, class: 'chart-grid-line' }));
+      var t = el('text', { x: padL - 8, y: yy + 3, class: 'chart-axis-text', 'text-anchor': 'end' });
+      t.textContent = fmt(v);
+      svg.appendChild(t);
+    }
+
+    var labelEvery = 6;
+    data.forEach(function(d, i) {
+      if (i % labelEvery === 0 || i === data.length - 1) {
+        var t = el('text', { x: x(i), y: H - 6, class: 'chart-axis-text', 'text-anchor': i === 0 ? 'start' : (i === data.length - 1 ? 'end' : 'middle') });
+        t.textContent = d.m;
+        svg.appendChild(t);
+      }
+    });
+
+    function linePath(key) {
+      return data.map(function(d, i) { return (i === 0 ? 'M' : 'L') + x(i).toFixed(2) + ',' + y(d[key]).toFixed(2); }).join(' ');
+    }
+    svg.appendChild(el('path', { d: linePath('peak'), fill: 'none', stroke: 'var(--aqua)', 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+    svg.appendChild(el('path', { d: linePath('avg'), fill: 'none', stroke: 'var(--blue)', 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+
+    annotations.forEach(function(a) {
+      var ax = x(a.i);
+      svg.appendChild(el('line', { x1: ax, x2: ax, y1: padT, y2: padT + plotH, stroke: 'var(--baseline)', 'stroke-width': 1, 'stroke-dasharray': '3,3' }));
+      var dot = el('circle', { cx: ax, cy: 14, r: 8, fill: 'var(--surface-1)', stroke: 'var(--orange)', 'stroke-width': 1.5 });
+      svg.appendChild(dot);
+      var lbl = el('text', { x: ax, y: 18, 'text-anchor': 'middle', class: 'chart-axis-text', fill: 'var(--orange)', style: 'font-weight:700' });
+      lbl.textContent = a.label;
+      svg.appendChild(lbl);
+    });
+
+    var hoverLine = el('line', { x1: 0, x2: 0, y1: padT, y2: padT + plotH, stroke: 'var(--baseline)', 'stroke-width': 1, opacity: 0 });
+    svg.appendChild(hoverLine);
+    var hoverDotAvg = el('circle', { r: 4, fill: 'var(--blue)', stroke: 'var(--surface-1)', 'stroke-width': 1.5, opacity: 0 });
+    var hoverDotPeak = el('circle', { r: 4, fill: 'var(--aqua)', stroke: 'var(--surface-1)', 'stroke-width': 1.5, opacity: 0 });
+    svg.appendChild(hoverDotAvg);
+    svg.appendChild(hoverDotPeak);
+
+    var hitArea = el('rect', { x: padL, y: padT, width: plotW, height: plotH, fill: 'transparent' });
+    svg.appendChild(hitArea);
+
+    function handleMove(evt) {
+      var rect = svg.getBoundingClientRect();
+      var px = (evt.clientX - rect.left) / rect.width * W;
+      var i = Math.round(((px - padL) / plotW) * (data.length - 1));
+      i = Math.max(0, Math.min(data.length - 1, i));
+      var d = data[i];
+      hoverLine.setAttribute('x1', x(i)); hoverLine.setAttribute('x2', x(i)); hoverLine.setAttribute('opacity', 1);
+      hoverDotAvg.setAttribute('cx', x(i)); hoverDotAvg.setAttribute('cy', y(d.avg)); hoverDotAvg.setAttribute('opacity', 1);
+      hoverDotPeak.setAttribute('cx', x(i)); hoverDotPeak.setAttribute('cy', y(d.peak)); hoverDotPeak.setAttribute('opacity', 1);
+      tooltip.textContent = d.m + '  avg ' + fmt(d.avg) + ' MW, peak ' + fmt(d.peak) + ' MW';
+      tooltip.style.left = (rect.left - svg.getBoundingClientRect().left + (x(i) / W) * rect.width) + 'px';
+      tooltip.style.top = (y(d.avg) / H) * rect.height + 'px';
+      tooltip.style.opacity = 1;
+    }
+    function handleLeave() {
+      hoverLine.setAttribute('opacity', 0);
+      hoverDotAvg.setAttribute('opacity', 0);
+      hoverDotPeak.setAttribute('opacity', 0);
+      tooltip.style.opacity = 0;
+    }
+    hitArea.addEventListener('mousemove', handleMove);
+    hitArea.addEventListener('mouseleave', handleLeave);
+    hitArea.addEventListener('touchmove', function(e) { handleMove(e.touches[0]); }, { passive: true });
+    hitArea.addEventListener('touchend', handleLeave);
+  }
+
+  if (PPL_LOAD.length) renderPplLoadChart('chart-ppl-load', 'tooltip-ppl-load', PPL_LOAD, PPL_ANNOTATIONS);
 })();
 </script>
 
