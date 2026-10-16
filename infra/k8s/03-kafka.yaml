@@ -69,6 +69,11 @@ metadata:
   namespace: pjm-grid-watch
 spec:
   clusterIP: None
+  # The broker has to resolve its own name (`kafka`, its advertised address and its controller
+  # quorum voter) before it can start, and it only becomes Ready once it has. A headless
+  # Service normally publishes DNS only for Ready pods, which makes that a deadlock: the
+  # broker dies with UnknownHostException on kafka:9093 and never gets there.
+  publishNotReadyAddresses: true
   selector:
     app: kafka
   ports:
