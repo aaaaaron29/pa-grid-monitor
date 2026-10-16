@@ -1,7 +1,14 @@
 import { getPplLoadYearOverYear, getPplMonthlyLoad } from "@/lib/queries/pjm";
 import { ChartCard, StatsGrid, StatTile } from "@/components/ChartCard";
 import { LineChart, ChartLegend } from "@/components/LineChart";
+import { SectionRail } from "@/components/SectionRail";
 
+const RAIL = [
+  { id: "overview", label: "Promises vs. measured" },
+  { id: "load-chart", label: "PPL zone load chart" },
+  { id: "not-lying", label: "Why this isn't \"PPL is lying\"" },
+  { id: "data-note", label: "A note on the data" },
+];
 
 const CLAIM_MONTHS = [
   { month: "2024-01", label: "1" },
@@ -34,10 +41,11 @@ export default async function AccountabilityPage() {
 
   return (
     <main className="mx-auto w-full max-w-[1100px] px-4 py-12">
+      <SectionRail items={RAIL} width="wide" />
       <div className="mb-1 text-[0.8rem] font-semibold" style={{ color: "var(--ink-2)" }}>
         Private: PJM Data Miner 2 sourced
       </div>
-      <h1 className="mb-3 text-3xl font-bold">Promises vs. measured reality</h1>
+      <h1 id="overview" className="mb-3 text-3xl font-bold">Promises vs. measured reality</h1>
       <p className="mb-8 max-w-[680px]" style={{ color: "var(--ink-2)" }}>
         PJM&apos;s <code>hrl_load_metered</code> feed, ingested back to December 2023 for all
         five PA zones. PPL&apos;s actual zone-wide load laid against the same claims timeline
@@ -60,7 +68,7 @@ export default async function AccountabilityPage() {
         </StatsGrid>
       )}
 
-      <div className="mt-6">
+      <div id="load-chart" className="mt-6">
         <ChartCard
           title="PPL zone load, monthly average & peak"
           meta="PJM hrl_load_metered, live"
@@ -118,7 +126,7 @@ export default async function AccountabilityPage() {
         the claims themselves grew roughly tenfold over the same window.
       </p>
 
-      <div className="mt-6 max-w-[680px] rounded-lg border p-5" style={{ borderColor: "color-mix(in srgb, var(--orange) 55%, var(--border))", background: "var(--surface-1)" }}>
+      <div id="not-lying" className="mt-6 max-w-[680px] rounded-lg border p-5" style={{ borderColor: "color-mix(in srgb, var(--orange) 55%, var(--border))", background: "var(--surface-1)" }}>
         <h3 className="mb-1 font-bold">
           Why this isn&apos;t &quot;PPL is lying&quot;
         </h3>
@@ -136,7 +144,7 @@ export default async function AccountabilityPage() {
         </p>
       </div>
 
-      <p className="mt-6 max-w-[680px] text-[0.88rem]" style={{ color: "var(--ink-2)" }}>
+      <p id="data-note" className="mt-6 max-w-[680px] text-[0.88rem]" style={{ color: "var(--ink-2)" }}>
         One honesty note on the data itself: PJM&apos;s feed never marks PPL&apos;s largest load
         component (PLCO, the bulk of the zone) as settlement-verified, unlike METED, PECO, and
         PENELEC. Duquesne&apos;s zone has the same gap. The numbers above are PJM&apos;s real

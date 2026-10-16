@@ -2,6 +2,13 @@ import Link from "next/link";
 import { PaMap } from "@/components/PaMap";
 import { SourceChip } from "@/components/Sources";
 import { STATIC_DEMO } from "@/lib/staticDemo";
+import { SectionRail } from "@/components/SectionRail";
+
+const RAIL = [
+  { id: "map-tool", label: "Map and project details" },
+  { id: "all-projects", label: "All projects" },
+  { id: "about-data", label: "About this data" },
+];
 
 // Public route. Everything on this page is public geography (county lines, HIFLD utility
 // territories, HIFLD power plants and facilities), Census 2020 counts, and publicly reported
@@ -17,6 +24,7 @@ export const metadata = {
 export default function MapPage() {
   return (
     <main className="mx-auto w-full max-w-[1100px] px-4 py-12">
+      <SectionRail items={RAIL} width="wide" />
       <h1 className="mb-4 text-3xl font-bold">Pennsylvania data center map</h1>
       <p className="mb-8 max-w-[680px]" style={{ color: "var(--ink-2)" }}>
         Publicly reported data center projects, shown against county lines and the territories of

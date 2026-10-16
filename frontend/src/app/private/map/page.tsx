@@ -2,6 +2,12 @@ import Link from "next/link";
 import { PaMap, type ZoneStat } from "@/components/PaMap";
 import type { ZoneName } from "@/data/paGeo";
 import { ZONES, getZoneSummary } from "@/lib/queries/pjm";
+import { SectionRail } from "@/components/SectionRail";
+
+const RAIL = [
+  { id: "map-tool", label: "Map and zone overlay" },
+  { id: "all-projects", label: "All projects" },
+];
 
 // Private route, gated by src/proxy.ts. This is the only page that hands PJM zone figures
 // (Data Miner 2 sourced) to the map. The public /map never does.
@@ -23,6 +29,7 @@ export default async function PrivateMapPage() {
 
   return (
     <main className="mx-auto w-full max-w-[1100px] px-4 py-12">
+      <SectionRail items={RAIL} width="wide" />
       <div className="mb-1 text-[0.8rem] font-semibold" style={{ color: "var(--ink-2)" }}>
         Private: PJM Data Miner 2 sourced
       </div>

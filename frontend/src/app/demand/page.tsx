@@ -11,7 +11,16 @@ import Link from "next/link";
 import { numbering } from "@/lib/sources";
 import { Cite, ReferenceList } from "@/components/Sources";
 import { SNAPSHOT_LABEL, STATIC_DEMO } from "@/lib/staticDemo";
+import { SectionRail } from "@/components/SectionRail";
 
+const RAIL = [
+  { id: "overview", label: "Current demand" },
+  { id: "charts", label: "Demand vs. forecast" },
+  { id: "generation", label: "Generation and interchange" },
+  { id: "what-this-means", label: "What this means" },
+  { id: "anomaly-log", label: "Flagged anomaly log" },
+  { id: "refs-heading", label: "Sources" },
+];
 
 const REF_IDS = ["eia-gridmonitor"];
 
@@ -60,7 +69,8 @@ export default async function DemandPage() {
 
   return (
     <main className="mx-auto w-full max-w-[1100px] px-4 py-12">
-      <h1 className="mb-4 text-3xl font-bold">PJM-wide demand</h1>
+      <SectionRail items={RAIL} width="wide" />
+      <h1 id="overview" className="mb-4 text-3xl font-bold">PJM-wide demand</h1>
       <p className="mb-8 max-w-[680px]" style={{ color: "var(--ink-2)" }}>
         EIA-930 sourced: federal, public, unrestricted.
         <Cite id="eia-gridmonitor" nums={n} />{" "}
@@ -99,7 +109,7 @@ export default async function DemandPage() {
         />
       </StatsGrid>
 
-      <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-2">
+      <div id="charts" className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-2">
         <ChartCard title="Demand vs. forecast" meta="EIA-930, hourly, 7 days">
           <LineChart
             data={demand}
@@ -128,7 +138,7 @@ export default async function DemandPage() {
         </ChartCard>
       </div>
 
-      <div className="mt-5">
+      <div id="generation" className="mt-5">
       <ChartCard title="Net generation and total interchange" meta="EIA-930, hourly, 7 days">
         <LineChart
           data={genInterchange}
@@ -206,7 +216,7 @@ export default async function DemandPage() {
         </p>
       </section>
 
-      <h2 className="mt-12 mb-3 text-xl font-bold">Flagged anomaly log</h2>
+      <h2 id="anomaly-log" className="mt-12 mb-3 text-xl font-bold">Flagged anomaly log</h2>
       <div className="overflow-x-auto rounded-[10px] border" style={{ borderColor: "var(--border)" }}>
         <table className={`w-full border-collapse text-[0.9rem] ${log.length > 0 ? "min-w-[480px]" : ""}`}>
           <caption className="sr-only">Flagged anomalies, most recent first</caption>

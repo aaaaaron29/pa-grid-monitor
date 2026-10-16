@@ -430,7 +430,7 @@ export function PaMap({ zoneStats }: { zoneStats?: Partial<Record<ZoneName, Zone
   }
 
   return (
-    <div>
+    <div id="map-tool">
       <div ref={topRef} className="scroll-mt-4" />
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <Toggle pressed={showUtilities} onClick={() => setShowUtilities((v) => !v)} label="Utility territories" />

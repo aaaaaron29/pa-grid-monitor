@@ -12,6 +12,15 @@ import { ChartCard, StatsGrid, StatTile } from "@/components/ChartCard";
 import { LineChart, ChartLegend } from "@/components/LineChart";
 import { FlagInfo } from "@/components/FlagInfo";
 import { summarizeFlags } from "@/lib/flagSummary";
+import { SectionRail } from "@/components/SectionRail";
+
+const RAIL = [
+  { id: "overview", label: "Zone and current prices" },
+  { id: "charts", label: "LMP and residual charts" },
+  { id: "all-zones", label: "All five zones" },
+  { id: "anomaly-log", label: "Anomaly log" },
+  { id: "related", label: "Related pages" },
+];
 
 
 function fmtPrice(v: number) {
@@ -49,10 +58,11 @@ export default async function ZonesPage({ searchParams }: PageProps<"/private/zo
 
   return (
     <main className="mx-auto w-full max-w-[1100px] px-4 py-12">
+      <SectionRail items={RAIL} width="wide" />
       <div className="mb-1 text-[0.8rem] font-semibold" style={{ color: "var(--ink-2)" }}>
         Private: PJM Data Miner 2 sourced
       </div>
-      <h1 className="mb-5 text-3xl font-bold">PJM zone LMP</h1>
+      <h1 id="overview" className="mb-5 text-3xl font-bold">PJM zone LMP</h1>
 
       <nav aria-label="Zone" className="mb-6 flex flex-wrap gap-2">
         {ZONES.map((z) => (
@@ -82,7 +92,7 @@ export default async function ZonesPage({ searchParams }: PageProps<"/private/zo
         <StatTile label="Anomalies (7d)" value={summary.anomalies7d} />
       </StatsGrid>
 
-      <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-2">
+      <div id="charts" className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-2">
         <ChartCard
           title={`LMP vs. forecast (${zone})`}
           meta="5-minute, 7 days"
@@ -112,7 +122,7 @@ export default async function ZonesPage({ searchParams }: PageProps<"/private/zo
         </ChartCard>
       </div>
 
-      <h2 className="mt-12 mb-3 text-xl font-bold">All five zones, anomalies (7d)</h2>
+      <h2 id="all-zones" className="mt-12 mb-3 text-xl font-bold">All five zones, anomalies (7d)</h2>
       <div className="mb-12 grid grid-cols-2 gap-px sm:grid-cols-5 [&>*:last-child]:col-span-2 sm:[&>*:last-child]:col-span-1 overflow-hidden rounded-[10px] border" style={{ background: "var(--border)", borderColor: "var(--border)" }}>
         {ZONES.map((z) => {
           const count = allCounts.find((c) => c.zone === z)?.count ?? 0;
@@ -125,7 +135,7 @@ export default async function ZonesPage({ searchParams }: PageProps<"/private/zo
         })}
       </div>
 
-      <h2 className="mb-3 text-xl font-bold">Anomaly log ({zone})</h2>
+      <h2 id="anomaly-log" className="mb-3 text-xl font-bold">Anomaly log ({zone})</h2>
       <div className="overflow-x-auto rounded-[10px] border" style={{ borderColor: "var(--border)" }}>
         <table className={`w-full border-collapse text-[0.9rem] ${log.length > 0 ? "min-w-[480px]" : ""}`}>
           <caption className="sr-only">Flagged anomalies for {zone}, most recent first</caption>
@@ -158,7 +168,7 @@ export default async function ZonesPage({ searchParams }: PageProps<"/private/zo
         </table>
       </div>
 
-      <p className="mt-12">
+      <p id="related" className="mt-12">
         <Link href="/private/accountability">The PPL promises-vs-measured load comparison &rarr;</Link>
       </p>
       <p className="mt-3">

@@ -3,6 +3,17 @@ import { getEiaReadingCount } from "@/lib/queries/eia";
 import { numbering } from "@/lib/sources";
 import { SNAPSHOT_LABEL, STATIC_DEMO } from "@/lib/staticDemo";
 import { Cite, ReferenceList, SourceChip } from "@/components/Sources";
+import { SectionRail } from "@/components/SectionRail";
+
+const RAIL = [
+  { id: "overview", label: "The question" },
+  { id: "why-this-exists", label: "Why this exists" },
+  { id: "pipeline", label: "PPL's pipeline, quarter by quarter" },
+  { id: "caveats", label: "Why the numbers may mislead" },
+  { id: "measured-comparison", label: "Where the measured comparison lives" },
+  { id: "limits", label: "What this does and doesn't prove" },
+  { id: "refs-heading", label: "Sources" },
+];
 
 // Public route. Only EIA-930 figures (federal, unrestricted) ever appear here -- PJM
 // Data Miner 2 sourced data (LMP, load, and the PPL promises-vs-measured comparison that
@@ -79,7 +90,8 @@ export default async function HomePage() {
 
   return (
     <main className="mx-auto w-full max-w-[680px] px-4 py-14">
-      <h1 className="mb-3 text-[2.2rem] leading-tight font-bold text-balance">
+      <SectionRail items={RAIL} width="narrow" />
+      <h1 id="overview" className="mb-3 text-[2.2rem] leading-tight font-bold text-balance">
         Are Pennsylvania&apos;s utilities delivering on their data center promises?
       </h1>
       <p className="mb-5 text-[1.05rem]">
@@ -103,7 +115,7 @@ export default async function HomePage() {
         </div>
       </div>
 
-      <section className="mb-10">
+      <section id="why-this-exists" className="mb-10">
         <h2 className="mb-3 text-xl font-bold">Why this exists</h2>
         <p>
           This started as a real-time anomaly detector on the PJM grid: an isolation forest
@@ -124,7 +136,7 @@ export default async function HomePage() {
         </p>
       </section>
 
-      <section className="mb-10">
+      <section id="pipeline" className="mb-10">
         <h2 className="mb-3 text-xl font-bold">PPL&apos;s pipeline, quarter by quarter</h2>
         <p>
           PPL Electric covers roughly 29 counties across central and eastern Pennsylvania,
@@ -155,7 +167,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="mb-10">
+      <section id="caveats" className="mb-10">
         <h2 className="mb-3 text-xl font-bold">Why these numbers might not mean what they say</h2>
         <div
           className="rounded-lg border p-5"
@@ -184,6 +196,7 @@ export default async function HomePage() {
       </section>
 
       <section
+        id="measured-comparison"
         className="mb-10 rounded-lg border p-5"
         style={{ borderColor: "var(--border)", background: "var(--surface-1)" }}
       >
@@ -198,7 +211,7 @@ export default async function HomePage() {
         </p>
       </section>
 
-      <section className="mb-10">
+      <section id="limits" className="mb-10">
         <h2 className="mb-3 text-xl font-bold">What this does and doesn&apos;t prove</h2>
         <p>
           <b>How the detection works:</b> an isolation forest scores the residual between actual
