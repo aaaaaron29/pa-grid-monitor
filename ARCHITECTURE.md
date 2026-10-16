@@ -1109,6 +1109,23 @@ README.md             documents the public/private data split explicitly for any
    schedule from the server, and the machine had 9.5 GB of 96 GB disk and about 6 GB of
    memory free. The first scheduled daily heal (12:15 UTC) had not yet run, so cron-driven
    gap healing is untested; the one heal that has run was started by hand after the cutover.
+   **Pipeline health page.** `/private/pipeline` shows whether the pipeline is delivering,
+   because the website reads only the Neon copy and a dead server otherwise looks the same as
+   a quiet one. After each hourly sync, `scripts/sync_to_neon.py` writes one row to
+   `pipeline_health` (migration 0005, `common/health.py`): per stream, the newest reading and
+   its age against the watchdog's limit; per table, rows on the server against rows in Neon;
+   and the host's state (services running, failing health checks, open alerts, last
+   five-minute check and daily heal, uptime, disk), which `ops.sh` passes in as JSON. Only
+   timestamps, counts and states are stored, never values. The page ages each stream forward
+   from the report and treats a report older than 2.5 hours as the headline, which makes it the
+   check a human can make without the server: if the page says the last report was hours ago,
+   the sync failed or the machine is down. A failed snapshot write does not fail the sync.
+   The daily completeness chart is counted from the copied readings instead (share of expected
+   5-minute intervals and hours present, per day), so it has history from day one. The newest
+   day of EIA and the newest two days of PJM load are left out because those feeds publish
+   late. Limits: reports are hourly, and the pollers' Prometheus counters and scoring latency
+   are not collected, since Prometheus does not run on the server.
+
    Open items: no alert channel is configured, about 12% of live 5-minute PJM intervals were
    missing when last counted (the cause was not investigated; the verified feed and the daily
    heal are meant to fill them), and the EIA key appeared in a terminal during setup and

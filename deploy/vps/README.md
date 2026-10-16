@@ -68,7 +68,9 @@ months, so the existing history is carried across with a dump rather than re-fet
 
 ## Day to day
 
-- `./ops.sh status` shows the containers, how old each data stream is, and open alerts.
+- `./ops.sh status` shows the containers, how old each data stream is, and open alerts. The
+  same picture is on the website at `/private/pipeline`, from a report the hourly sync writes
+  to Neon.
 - `docker compose logs -f pjm-poller` follows one service.
 - Updating: `git pull && docker compose build && docker compose up -d`.
 - Everything on the box can be rebuilt from this repo, the artifacts and `.env`. The data is

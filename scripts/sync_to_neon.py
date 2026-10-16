@@ -30,11 +30,22 @@ if sys.stderr is None:
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from common.config import get_settings  # noqa: E402
+from common.health import build_snapshot, snapshot_from_env_ops, write_snapshot  # noqa: E402
 from common.logging import configure_logging  # noqa: E402
 from common.neon_sync import connect_with_retry, sync_all  # noqa: E402
 from scripts.apply_migrations import apply_migrations  # noqa: E402
 
 log = logging.getLogger("sync_to_neon")
+
+
+def _record_health(src, dst, results) -> None:
+    """The page that shows pipeline health reads this. Failing to write it must not fail a sync
+    that otherwise worked, so the error is logged and the run still counts as good."""
+    try:
+        write_snapshot(dst, build_snapshot(src, results, snapshot_from_env_ops()))
+    except Exception:
+        dst.rollback()
+        log.exception("could not write the pipeline health snapshot")
 
 
 def main() -> int:
@@ -74,6 +85,8 @@ def main() -> int:
                 full=args.full,
                 dry_run=args.dry_run,
             )
+            if not args.dry_run:
+                _record_health(src, dst, results)
     except Exception:
         log.exception("neon sync failed")
         return 1

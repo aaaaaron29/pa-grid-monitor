@@ -174,6 +174,9 @@ export default async function ZonesPage({ searchParams }: PageProps<"/private/zo
       <p className="mt-3">
         <Link href="/private/map">The PA map with zone overlay &rarr;</Link>
       </p>
+      <p className="mt-3">
+        <Link href="/private/pipeline">Whether the pipeline behind these pages is healthy &rarr;</Link>
+      </p>
     </main>
   );
 }

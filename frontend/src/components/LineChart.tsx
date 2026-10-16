@@ -18,18 +18,22 @@ type Row = Record<string, unknown>;
 
 // LineChart is a Client Component, so its props must be serializable: server pages cannot
 // hand it formatter functions. Formatting is chosen by name instead.
-export type XKind = "datetime" | "month";
-export type YFormat = "number" | "usd";
+export type XKind = "datetime" | "day" | "month";
+export type YFormat = "number" | "usd" | "percent" | "minutes";
 
 export interface LineChartProps<T extends Row> {
   data: T[];
   series: ChartSeries[];
   xKey?: string;
-  /** "datetime": ISO timestamps (tick "MM-DD", tooltip "MM-DD HH:MM"). "month": "YYYY-MM" as-is. */
+  /** "datetime": ISO timestamps (tick "MM-DD", tooltip "MM-DD HH:MM"). "day": one point per day,
+   * same ticks, tooltip "MM-DD". "month": "YYYY-MM" as-is. */
   xKind?: XKind;
   flagKey?: string;
-  /** "number": rounded with thousands separators. "usd": two-decimal dollars. */
+  /** "number": rounded with thousands separators. "usd": two-decimal dollars. "percent": 0 to 100
+   * with a % sign. "minutes": minutes under two hours, hours beyond. */
   yFormat?: YFormat;
+  /** Pin the value axis instead of fitting it to the data, e.g. [0, 100] for a percentage. */
+  yRange?: [number, number];
   annotations?: ChartAnnotation[];
   height?: number;
   /** Fill the parent's height instead of using `height`. For the enlarged view. */
@@ -46,6 +50,8 @@ function formatY(kind: YFormat, v: number) {
     const sign = v < 0 ? "-" : "";
     return sign + "$" + Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
+  if (kind === "percent") return `${Math.round(v)}%`;
+  if (kind === "minutes") return v <= 90 ? `${Math.round(v)}m` : `${Number((v / 60).toFixed(1))}h`;
   return Math.round(v).toLocaleString("en-US");
 }
 
@@ -56,7 +62,8 @@ function tickLabel(kind: XKind, raw: unknown) {
 
 function tooltipLabel(kind: XKind, raw: unknown) {
   const s = String(raw ?? "");
-  return kind === "month" ? s : s.slice(5, 16).replace("T", " ");
+  if (kind === "month") return s;
+  return kind === "day" ? s.slice(5, 10) : s.slice(5, 16).replace("T", " ");
 }
 
 const DEFAULT_W = 700;
@@ -73,6 +80,7 @@ export function LineChart<T extends Row>({
   xKind = "datetime",
   flagKey,
   yFormat = "number",
+  yRange,
   annotations,
   height = 220,
   fill = false,
@@ -157,6 +165,7 @@ export function LineChart<T extends Row>({
   }, [zoomable, zoomBy, W]);
 
   const { vMin, vMax } = useMemo(() => {
+    if (yRange) return { vMin: yRange[0], vMax: yRange[1] };
     const values: number[] = [];
     for (const d of data) {
       for (const s of series) {
@@ -171,14 +180,14 @@ export function LineChart<T extends Row>({
     min -= pad;
     max += pad;
     return { vMin: min, vMax: max };
-  }, [data, series]);
+  }, [data, series, yRange]);
 
   const x = (i: number) => padL + (i / Math.max(data.length - 1, 1)) * plotW;
   const y = (v: number) => padT + plotH - ((v - vMin) / (vMax - vMin || 1)) * plotH;
 
   // When what is on screen spans two days or less, label hours instead of days.
   const hourStep = useMemo(() => {
-    if (xKind !== "datetime" || data.length < 2) return null;
+    if (xKind !== "datetime" || data.length < 2) return null; // "day" never switches to hours
     const a = Date.parse(String(data[0][xKey]));
     const b = Date.parse(String(data[data.length - 1][xKey]));
     const span = (b - a) / 3.6e6;
@@ -202,7 +211,7 @@ export function LineChart<T extends Row>({
         const s = String(data[i][xKey] ?? "");
         if (s.slice(14, 16) === "00" && Number(s.slice(11, 13)) % hourStep === 0) candidates.push(i);
       }
-    } else if (xKind === "datetime") {
+    } else if (xKind === "datetime" || xKind === "day") {
       for (let i = 0; i < data.length; i++) {
         const cur = String(data[i][xKey] ?? "").slice(0, 10);
         const prev = i > 0 ? String(data[i - 1][xKey] ?? "").slice(0, 10) : "";

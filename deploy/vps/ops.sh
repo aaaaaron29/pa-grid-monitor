@@ -152,6 +152,7 @@ cmd_watch() {
   fi
 
   publish_alerts
+  now > "$STATE_DIR/watch_last"
 
   # 5. Dead-man's switch: a clean pass pings; a pass with problems pings the fail URL. If the
   # server itself dies the pings simply stop, and the service emails you.
@@ -164,10 +165,24 @@ cmd_watch() {
   fi
 }
 
+# The host's own state as one line of JSON, handed to the Neon sync so the website's pipeline
+# page can show it. Names and counts only; nothing secret and no data values.
+ops_health_json() {
+  local expected running unhealthy alerts
+  expected="$(compose config --services | grep -vx migrate | grep -c .)"
+  running="$(compose ps --status running --services | grep -c .)"
+  unhealthy="$(docker ps --filter health=unhealthy -q | grep -c .)"
+  alerts="$(ls "$STATE_DIR/alerts" 2>/dev/null | jq -R . | jq -s .)"
+  jq -cn     --argjson expected "${expected:-0}" --argjson running "${running:-0}"     --argjson unhealthy "${unhealthy:-0}" --argjson alerts "${alerts:-[]}"     --argjson watch "$(counter_get watch_last)" --argjson heal "$(counter_get heal_last)"     --argjson heal_days "$HEAL_DAYS"     --argjson uptime "$(cut -d. -f1 /proc/uptime)"     --argjson disk "$(df --output=pcent / | tail -1 | tr -dc 0-9)"     '{services_expected: $expected, services_running: $running, services_unhealthy: $unhealthy,
+      open_alerts: $alerts, heal_days: $heal_days, uptime_seconds: $uptime, disk_used_percent: $disk,
+      last_watch_at: (if $watch > 0 then ($watch | todate) else null end),
+      last_heal_at: (if $heal > 0 then ($heal | todate) else null end)}' 2>/dev/null
+}
+
 cmd_sync() {
   exec 8> "$STATE_DIR/sync.lock"
   flock -n 8 || exit 0
-  if compose run --rm -T ops python scripts/sync_to_neon.py >> "$LOG_DIR/sync.log" 2>&1; then
+  if compose run --rm -T -e "OPS_HEALTH_JSON=$(ops_health_json)" ops python scripts/sync_to_neon.py >> "$LOG_DIR/sync.log" 2>&1; then
     touch "$STATE_DIR/neon_last_ok"
   else
     log "neon sync failed, see $LOG_DIR/sync.log"
@@ -185,6 +200,7 @@ cmd_heal() {
     compose run --rm -T ops python -m ingestion.backfill --source eia --start "$start" --no-metrics-server
     compose run --rm -T ops python scripts/rescore_recent.py --days $((HEAL_DAYS + 1))
   } >> "$LOG_DIR/heal.log" 2>&1
+  now > "$STATE_DIR/heal_last"
   log "gap heal finished"
 }
 

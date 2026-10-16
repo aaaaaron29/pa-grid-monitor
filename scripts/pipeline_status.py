@@ -21,28 +21,12 @@ import sys
 import psycopg
 
 from common.config import get_settings
-
-# (key, table, extra WHERE) -- one query each, newest period_start.
-STREAMS = [
-    ("pjm_lmp", "pjm_lmp_readings", ""),
-    ("pjm_lmp_scored", "pjm_lmp_anomalies", ""),
-    ("eia_demand", "eia_readings", "WHERE reading_type = 'D'"),
-    ("eia_scored", "eia_anomalies", ""),
-    ("pjm_load", "pjm_load_readings", ""),
-]
+from common.health import stream_ages
 
 
 def collect(dsn: str) -> dict[str, float | None]:
-    ages: dict[str, float | None] = {}
-    with psycopg.connect(dsn, connect_timeout=10) as conn, conn.cursor() as cur:
-        for key, table, where in STREAMS:
-            # Table and filter come from the constant list above, never from input.
-            cur.execute(
-                f"SELECT EXTRACT(EPOCH FROM (now() - max(period_start))) / 60 FROM {table} {where}"
-            )
-            value = cur.fetchone()[0]
-            ages[key] = None if value is None else round(float(value), 1)
-    return ages
+    with psycopg.connect(dsn, connect_timeout=10) as conn:
+        return stream_ages(conn)
 
 
 def main() -> int:

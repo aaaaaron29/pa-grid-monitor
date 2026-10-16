@@ -13,8 +13,8 @@ pipeline runs around the clock on a single small VPS under Docker Compose
 ([deploy/vps/](deploy/vps/)) rather than a cluster or a personal machine. That stack leaves
 out Prometheus and Grafana, which the website replaced, so they run only in the local
 development setup. The live site's private pages are only as fresh as the last hourly sync
-from the server. No alert channel is configured yet, so a dead server would not be noticed
-automatically. The full correlation layer between grid stress and data center interconnection
+from the server, and the private pipeline page shows when the last one arrived. No alert
+channel is configured yet, so a dead server is noticed only by someone looking at that page. The full correlation layer between grid stress and data center interconnection
 activity is not built.
 
 ## What it does
@@ -35,7 +35,7 @@ A Next.js app in [frontend/](frontend/).
 | `/` | Public | Case study and methodology |
 | `/demand` | Public | PJM-wide hourly demand against the forecast, from EIA data |
 | `/map` | Public | Pennsylvania data center map (below) |
-| `/private/*` | Passcode | PA zone prices, anomalies, forecast accountability, map with a zone overlay |
+| `/private/*` | Passcode | PA zone prices, anomalies, forecast accountability, map with a zone overlay, and pipeline health (stream freshness, daily completeness, website-copy parity, server state) |
 
 ### The data center map
 

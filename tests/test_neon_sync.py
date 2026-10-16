@@ -201,3 +201,43 @@ def test_a_missing_destination_table_is_reported_clearly(pair):
 
     with pytest.raises(RuntimeError, match="does not exist in the destination"):
         sync_table(src, dst, ghost)
+
+
+def test_health_snapshot_round_trips_and_is_pruned(pair):
+    import json
+
+    from common.health import STREAMS, build_snapshot, parse_ops, write_snapshot
+
+    src, dst = pair
+    now = datetime.now(UTC)
+    src.execute(
+        "INSERT INTO pjm_lmp_readings (zone, period_start, lmp_price, retrieved_at) "
+        "VALUES ('PECO', %s, 20, %s)",
+        (now - timedelta(minutes=10), now),
+    )
+    src.commit()
+    results = sync_all(src, dst)
+
+    ops = parse_ops(json.dumps({"services_running": 10, "services_expected": 10}))
+    snapshot = build_snapshot(src, results, ops, now=now)
+    write_snapshot(dst, snapshot)
+
+    (payload,) = dst.execute("SELECT payload FROM pipeline_health").fetchone()
+    assert set(payload["streams"]) == {s.key for s in STREAMS}
+    assert 9 < payload["streams"]["pjm_lmp"]["age_minutes"] < 12
+    assert payload["streams"]["eia_demand"]["newest"] is None  # nothing ingested yet
+    assert {t["table"] for t in payload["sync"]} == {t.name for t in TABLES}
+    assert payload["host"]["services_running"] == 10
+
+    old = dict(snapshot, captured_at=(now - timedelta(days=200)).isoformat())
+    write_snapshot(dst, old)  # writing an old row also runs the prune, which removes it
+    (count,) = dst.execute("SELECT count(*) FROM pipeline_health").fetchone()
+    assert count == 1
+
+
+def test_unreadable_host_state_is_dropped():
+    from common.health import parse_ops
+
+    assert parse_ops(None) is None
+    assert parse_ops("not json") is None
+    assert parse_ops("[1, 2]") is None
