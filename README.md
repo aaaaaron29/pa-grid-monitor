@@ -107,6 +107,13 @@ Full reasoning, including what is deliberately *not* claimed, is in
   `scripts/sync_to_neon.py` copies new rows to a Neon database on an hourly schedule. Neon's
   free plan would run out of compute hours if the pipeline wrote to it directly every five
   minutes. See ARCHITECTURE.md for the reasoning.
+- **Keeping it running (Windows):** `scripts/windows/install_watchdog.ps1` registers a scheduled
+  task that checks every two minutes and at logon. It starts Postgres, Kafka and the eight
+  pipeline processes if any are down, restarts stuck ones, alerts when a data stream stops
+  arriving (Windows notification, and a phone push if `WATCHDOG_NTFY_TOPIC` is set in `.env`),
+  and once a day re-pulls the last few days from PJM's verified feed and re-scores them, which
+  closes the gaps an outage leaves. `scripts/windows/watchdog.ps1 -Status` prints the current
+  state without changing anything.
 - **Frontend:** `cd frontend && npm install && npm run dev`, with `DATABASE_URL` and
   `PRIVATE_PASSCODE` set in `frontend/.env.local` (see `.env.example`; gitignored, never
   commit it). The public map needs neither.

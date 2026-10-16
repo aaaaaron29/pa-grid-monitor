@@ -1043,6 +1043,33 @@ README.md             documents the public/private data split explicitly for any
    guessing from one address only, so the passcode still needs to be long. The `next`
    redirect after sign-in is restricted to same-site `/private/` paths.
 
+   **Local watchdog (2026-10-16).** The pipeline runs by hand on one Windows machine, and the
+   two outages so far (a two-day hole on Oct 13 to 14, and a Kafka crash on Oct 15) were both
+   the failure Section 7 predicts: something quietly stops and the site goes stale.
+   `scripts/windows/watchdog.ps1` is a stopgap until the pipeline moves somewhere that
+   restarts it. `install_watchdog.ps1` schedules it at logon and every two minutes. Each pass
+   (1) starts Postgres and Kafka if they are down, (2) starts any of the eight pipeline
+   processes that are missing, giving each its own metrics port because the code defaults
+   them all to 9100, and restarts an inference service that fails its `/health` check three
+   passes running, (3) reads data freshness from `scripts/pipeline_status.py` and checks the
+   Neon sync task, and (4) once a day re-pulls the last four days from PJM's verified feed and
+   EIA and re-scores them with `scripts/rescore_recent.py`. Step 4 is the real fix for the
+   hole problem: the live PJM feed returns only the newest interval, so a missed stretch can
+   only be recovered from the verified feed, and the scorer refuses to score across a hole.
+   Stall thresholds are PJM LMP 25 minutes, EIA demand 8 hours and PJM load 4 days, chosen
+   from the normal ages (a few minutes, about 2 to 6 hours, and 1 to 2 days). A stalled LMP
+   stream also restarts the PJM poller, consumer and inference service, at most hourly. A
+   process that needs more than five restarts in an hour stops being restarted and alerts
+   instead. Alerts go to the log and a Windows notification, plus a phone push through
+   ntfy.sh if `WATCHDOG_NTFY_TOPIC` is set in `.env`; each problem alerts once, repeats every
+   three hours, and reports when it clears. Processes are created through WMI so Task
+   Scheduler does not tear them down when the pass ends, which was checked by killing a
+   process, letting the task restart it and confirming it survived. Killing Kafka outright
+   was also tested: the next pass restarted it in about 20 seconds and the consumers
+   reconnected. Limits: it only runs while the machine is on and signed in (the task is
+   interactive, like the Neon sync), so sleep, a reboot without sign-in, or a power cut still
+   stops everything until the machine is back, and it cannot alert while the machine is off.
+
 ## 10. Steps to complete before building starts
 
 These are the only external dependencies: everything else (Kafka, Postgres, Grafana, k3s,
