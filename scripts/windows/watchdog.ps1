@@ -87,14 +87,13 @@ if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory -Force -Path $LogDi
 
 function Write-Log([string]$Message) {
     $line = '{0} {1}' -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $Message
-    if ($Status) { Write-Host $line; return }
+    if ($Status -or $DryRun) { Write-Host $line; return }
     try {
         if ((Test-Path $LogFile) -and (Get-Item $LogFile).Length -gt 1MB) {
             Move-Item -Force $LogFile "$LogFile.1"
         }
         Add-Content -Path $LogFile -Value $line
     } catch { }
-    if ($DryRun) { Write-Host $line }
 }
 
 # A second pass starting while one is still working (a Kafka start can take a minute) must
