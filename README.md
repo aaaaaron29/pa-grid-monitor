@@ -8,10 +8,14 @@ stress beside them.
 
 **Status.** The pipeline (ingestion, Kafka, Postgres, two inference services, Prometheus,
 Grafana) is built and CI-verified end to end, and the Kubernetes manifests are validated
-against a real cluster in CI. The frontend is built and deployed. The pipeline currently runs
-on a single small VPS under Docker Compose ([deploy/vps/](deploy/vps/)) rather than a cluster,
-so the live site's private pages are only as fresh as the last hourly sync from that server. The full correlation layer between grid
-stress and data center interconnection activity is not built.
+against a real cluster in CI. The frontend is built and deployed. Since 2026-10-16 the
+pipeline runs around the clock on a single small VPS under Docker Compose
+([deploy/vps/](deploy/vps/)) rather than a cluster or a personal machine. That stack leaves
+out Prometheus and Grafana, which the website replaced, so they run only in the local
+development setup. The live site's private pages are only as fresh as the last hourly sync
+from the server. No alert channel is configured yet, so a dead server would not be noticed
+automatically. The full correlation layer between grid stress and data center interconnection
+activity is not built.
 
 ## What it does
 
@@ -103,7 +107,7 @@ Full reasoning, including what is deliberately *not* claimed, is in
 - **Pipeline:** Postgres, Kafka, a poller and consumer per source, and the inference services.
   The PJM poller shares one cross-process rate limit because the API allows 6 requests per
   minute per key.
-- **Database for the site:** the pipeline writes to local Postgres, and
+- **Database for the site:** the pipeline writes to its own Postgres, and
   `scripts/sync_to_neon.py` copies new rows to a Neon database on an hourly schedule. Neon's
   free plan would run out of compute hours if the pipeline wrote to it directly every five
   minutes. See ARCHITECTURE.md for the reasoning.
@@ -126,6 +130,6 @@ address lock it out for 15 minutes, and the check fails closed.
 
 ## Stack
 
-Python · Kafka (KRaft) · Postgres · Neon · scikit-learn / PyTorch · FastAPI · Prometheus ·
-Grafana · Next.js · Tailwind · Vercel · GitHub Actions · GitHub Pages · Kubernetes (k3s
-manifests validated in CI)
+Python · Kafka (KRaft) · Postgres · Neon · scikit-learn · FastAPI · Docker Compose ·
+Prometheus · Grafana · Next.js · Tailwind · Vercel · GitHub Actions · GitHub Pages ·
+Kubernetes (k3s manifests validated in CI)

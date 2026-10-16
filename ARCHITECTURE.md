@@ -330,9 +330,11 @@ Prometheus scrapes /metrics from both pollers + both inference services, and ale
 ingest staleness (see Section 7).
 ```
 
-**Both tiers run on the Oracle VM.** Nothing in this system is permanently hosted on a
-personal machine: the VM is always-on, and a laptop being asleep must never create a gap in
-collection. Docker Compose reproduces the stack locally for development only.
+**Both tiers run on one always-on server.** Nothing in this system is permanently hosted on a
+personal machine: the server is always-on, and a laptop being asleep must never create a gap in
+collection. Docker Compose reproduces the stack locally for development only. The server is
+now a rented VPS rather than the Oracle VM this section was written for; see "VPS deployment"
+in Section 9.
 
 ### Always-on vs scheduled workloads
 
@@ -1004,8 +1006,10 @@ README.md             documents the public/private data split explicitly for any
    month, with compute suspending after 5 idle minutes. A pipeline that writes every 5
    minutes never lets Neon suspend, which is roughly 180 compute-hours a month, and when the
    allowance runs out Neon suspends and the site and the pipeline both stop. Instead,
-   `scripts/sync_to_neon.py` (logic in `common/neon_sync.py`) runs hourly from a Windows
-   scheduled task (`pa-grid-monitor-neon-sync`), so Neon sleeps between runs. Each run
+   `scripts/sync_to_neon.py` (logic in `common/neon_sync.py`) runs hourly, first from a Windows
+   scheduled task (`pa-grid-monitor-neon-sync`) and since 2026-10-16 from the VPS's cron
+   (that task is disabled and must stay so, or two machines would write to Neon), so Neon
+   sleeps between runs. Each run
    streams rows newer than Neon's newest timestamp (minus a 6-hour overlap, so revised or
    late rows are caught) into a temporary table and upserts them on the primary key, writing
    only rows whose values changed. A re-run is therefore harmless, and `--full` resends
@@ -1069,6 +1073,9 @@ README.md             documents the public/private data split explicitly for any
    reconnected. Limits: it only runs while the machine is on and signed in (the task is
    interactive, like the Neon sync), so sleep, a reboot without sign-in, or a power cut still
    stops everything until the machine is back, and it cannot alert while the machine is off.
+   That limit is why the pipeline moved to a server the same day. The scheduled task was
+   uninstalled at the cutover; the scripts stay in the repo for anyone running the pipeline
+   by hand on Windows.
 
    **VPS deployment (2026-10-16).** The pipeline now runs on a rented VPS instead of the
    local machine (Contabo Cloud VPS 4: 4 vCPU, 8 GB RAM, Ubuntu 26.04, EU region, about $6.60
@@ -1097,6 +1104,16 @@ README.md             documents the public/private data split explicitly for any
    carried across rather than re-fetched. The local pipeline processes and Windows tasks are
    stopped; local Postgres and Kafka were left running for a day as a way back.
 
+   Seven hours after the cutover all ten containers were up and the four healthcheck-bearing
+   ones healthy, the newest PJM LMP interval was 10 minutes old, the hourly sync had run on
+   schedule from the server, and the machine had 9.5 GB of 96 GB disk and about 6 GB of
+   memory free. The first scheduled daily heal (12:15 UTC) had not yet run, so cron-driven
+   gap healing is untested; the one heal that has run was started by hand after the cutover.
+   Open items: no alert channel is configured, about 12% of live 5-minute PJM intervals were
+   missing when last counted (the cause was not investigated; the verified feed and the daily
+   heal are meant to fill them), and the EIA key appeared in a terminal during setup and
+   should be regenerated if that output is retained anywhere.
+
 ## 10. Steps to complete before building starts
 
 These are the only external dependencies: everything else (Kafka, Postgres, Grafana, k3s,
@@ -1111,7 +1128,8 @@ Docker, GitHub Actions) is self-installed later and needs no advance signup.
 4. **PKI-certificate auth checked** (done): not required. The plain subscription key above
    authenticated without one, confirmed live against `api.pjm.com` (Section 3 has the
    detail). Revisit only if auth starts failing later.
-5. **Oracle Cloud account**: in progress. Once the VM exists: reserve a Public IPv4 address
+5. **Oracle Cloud account**: superseded by the VPS (Section 9, "VPS deployment"); the notes
+   below apply only if an Oracle VM is ever created. Once the VM exists: reserve a Public IPv4 address
    (Always Free allows 2 at no cost) and attach it, rather than leaving the default ephemeral
    IP in place.
 6. **GitHub repo created** (done): `github.com/aaaaaron29/pa-grid-monitor`, architecture doc
@@ -1120,7 +1138,6 @@ Docker, GitHub Actions) is self-installed later and needs no advance signup.
    reserved IP; needed for the TLS/public-access plan in Section 5. Can be done anytime
    before Phase 5 deploy, no rush.
 
-The only remaining external dependency is step 5 (Oracle Cloud account, needed for Phase 5
-deploy only). PJM access is confirmed and live, so the private tier is unblocked too:
+No external dependency remains. PJM access is confirmed and live, so the private tier is unblocked too:
 remaining PJM work is the zone-identifier confirmation and feed-strategy implementation
 noted in Section 3/4, not an access/provisioning wait.
