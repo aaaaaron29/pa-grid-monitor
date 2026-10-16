@@ -9,7 +9,7 @@ export type RailItem = { id: string; label: string };
 // to a short section then leaves that section current instead of handing over to the next.
 const readingLine = () => 140;
 // Vertical centre of each marker inside its list row, in px.
-const DOT_CENTER = 13;
+const DOT_CENTER = 17;
 
 // The rail lives in the blank margin left of the page content, so how wide a page is decides
 // when there is room for it. The class strings are written out whole so Tailwind can see them.
@@ -128,7 +128,7 @@ export function SectionRail({ items, width }: { items: RailItem[]; width: keyof 
               ref={fillRef}
               aria-hidden="true"
               className="absolute top-0 left-[4px] w-px"
-              style={{ background: "var(--blue)", height: 0 }}
+              style={{ background: "var(--ink-2)", height: 0 }}
             />
             {items.map((it, i) => {
               const state = i < active ? "past" : i === active ? "current" : "ahead";
@@ -138,11 +138,11 @@ export function SectionRail({ items, width }: { items: RailItem[]; width: keyof 
                     href={`#${it.id}`}
                     onClick={() => onJump(i)}
                     aria-current={state === "current" ? "location" : undefined}
-                    className="block py-1 pl-5 text-[0.82rem] leading-snug no-underline underline-offset-4 hover:text-[var(--ink-1)] hover:underline"
+                    className="block py-2 pl-5 text-[0.82rem] leading-snug no-underline underline-offset-4 hover:text-[var(--ink-1)] hover:underline"
                     style={{
                       color: state === "current" ? "var(--ink-1)" : "var(--ink-2)",
                       fontWeight: state === "current" ? 650 : 400,
-                      textDecorationColor: "var(--blue)",
+                      textDecorationColor: "var(--ink-2)",
                     }}
                   >
                     <span
@@ -154,10 +154,10 @@ export function SectionRail({ items, width }: { items: RailItem[]; width: keyof 
                         height: state === "current" ? 13 : 9,
                         left: state === "current" ? -2 : 0,
                         top: DOT_CENTER - (state === "current" ? 6.5 : 4.5),
-                        background: state === "ahead" ? "var(--page)" : "var(--blue)",
-                        borderColor: state === "ahead" ? "var(--baseline)" : "var(--blue)",
+                        background: state === "ahead" ? "var(--page)" : "var(--ink-2)",
+                        borderColor: state === "ahead" ? "var(--baseline)" : "var(--ink-2)",
                         boxShadow:
-                          state === "current" ? "0 0 0 3px color-mix(in srgb, var(--blue) 22%, transparent)" : "none",
+                          state === "current" ? "0 0 0 3px color-mix(in srgb, var(--ink-2) 25%, transparent)" : "none",
                       }}
                     />
                     {it.label}
@@ -224,7 +224,7 @@ function JumpPill({
                   onJump(i);
                   setOpen(false);
                 }}
-                className="block px-3.5 py-2 no-underline hover:bg-[color-mix(in_srgb,var(--blue)_10%,transparent)]"
+                className="block px-3.5 py-2 no-underline hover:bg-[color-mix(in_srgb,var(--ink-2)_12%,transparent)]"
                 style={{
                   color: it.label === current ? "var(--ink-1)" : "var(--ink-2)",
                   fontWeight: it.label === current ? 650 : 400,
@@ -249,7 +249,7 @@ function JumpPill({
           boxShadow: "0 2px 8px rgb(0 0 0 / 0.18)",
         }}
       >
-        <span aria-hidden="true" className="size-2 shrink-0 rounded-full" style={{ background: "var(--blue)" }} />
+        <span aria-hidden="true" className="size-2 shrink-0 rounded-full" style={{ background: "var(--ink-2)" }} />
         <span className="truncate">{current}</span>
       </button>
     </div>
