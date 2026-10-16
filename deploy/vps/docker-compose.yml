@@ -1,0 +1,230 @@
+# Production stack for a single small VPS (see deploy/vps/README.md). Same services as the
+# repo-root docker-compose.yml, hardened for running unattended:
+#   - nothing is published to the host. The pipeline only makes outbound calls, and Docker
+#     publishes ports around the host firewall, so a stray "ports:" line would expose Postgres
+#     or Kafka to the internet. Keep it that way.
+#   - every long-running service restarts on its own, with rotated logs.
+#   - Postgres and Kafka keep their data in named volumes.
+#   - no Prometheus or Grafana: the site replaced the dashboards, and they cost RAM.
+#
+# Secrets come from deploy/vps/.env (gitignored; see .env.example).
+
+name: pagrid
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-env: &app-env
+  POSTGRES_DSN: postgresql://pjm_grid_watch:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/pjm_grid_watch
+  KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+
+# PJM allows 6 requests a minute per key, and the clients share one throttle through a lock
+# file in the temp directory (ingestion/pjm_poller/client.py). Separate containers have
+# separate /tmp, so every container that calls PJM points TMPDIR at one shared volume.
+x-pjm-env: &pjm-env
+  <<: *app-env
+  TMPDIR: /shared-tmp
+
+x-app: &app
+  env_file: .env
+  restart: unless-stopped
+  logging: *logging
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      POSTGRES_USER: pjm_grid_watch
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: pjm_grid_watch
+    command: ["postgres", "-c", "shared_buffers=128MB", "-c", "max_connections=60"]
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pjm_grid_watch"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  kafka:
+    image: apache/kafka:4.3.1
+    restart: unless-stopped
+    logging: *logging
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_HEAP_OPTS: "-Xmx768m -Xms384m"
+      KAFKA_LOG_RETENTION_HOURS: 24
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 > /dev/null"]
+      interval: 15s
+      timeout: 15s
+      retries: 10
+      start_period: 30s
+
+  migrate:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    <<: *app
+    restart: "no"
+    environment: *app-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["python", "scripts/apply_migrations.py"]
+
+  eia-poller:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    <<: *app
+    environment: *app-env
+    depends_on:
+      kafka:
+        condition: service_healthy
+    command: ["ingestion.eia_poller"]
+
+  eia-consumer:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    <<: *app
+    environment: *app-env
+    depends_on:
+      kafka:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    command: ["ingestion.eia_poller.consumer"]
+
+  pjm-poller:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    <<: *app
+    environment: *pjm-env
+    volumes:
+      - pjm_throttle:/shared-tmp
+    depends_on:
+      kafka:
+        condition: service_healthy
+    command: ["ingestion.pjm_poller"]
+
+  pjm-consumer:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    <<: *app
+    environment: *app-env
+    depends_on:
+      kafka:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    command: ["ingestion.pjm_poller.consumer"]
+
+  pjm-load-poller:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    <<: *app
+    environment: *pjm-env
+    volumes:
+      - pjm_throttle:/shared-tmp
+    depends_on:
+      kafka:
+        condition: service_healthy
+    command: ["ingestion.pjm_load_poller"]
+
+  pjm-load-consumer:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    <<: *app
+    environment: *app-env
+    depends_on:
+      kafka:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    command: ["ingestion.pjm_load_poller.consumer"]
+
+  eia-inference:
+    build:
+      context: ../..
+      dockerfile: Dockerfile.inference-eia
+    <<: *app
+    environment: *app-env
+    depends_on:
+      kafka:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import json,sys,urllib.request as u; h=json.load(u.urlopen('http://127.0.0.1:8000/health',timeout=5)); sys.exit(0 if h.get('model_loaded') and h.get('consumer_alive') else 1)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+  pjm-inference:
+    build:
+      context: ../..
+      dockerfile: Dockerfile.inference-pjm
+    <<: *app
+    environment: *app-env
+    volumes:
+      # The PJM-trained artifacts are never baked into an image (ARCHITECTURE.md Section 7).
+      # They are copied to the server by hand and mounted read-only.
+      - ../../artifacts:/app/artifacts:ro
+    depends_on:
+      kafka:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import json,sys,urllib.request as u; h=json.load(u.urlopen('http://127.0.0.1:8000/health',timeout=5)); sys.exit(0 if h.get('model_loaded') and h.get('consumer_alive') else 1)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+  # One-off jobs, run by ops.sh (never started by "up"): the hourly Neon sync, the daily gap
+  # heal and the freshness check.
+  ops:
+    profiles: ["tools"]
+    build:
+      context: ../..
+      dockerfile: deploy/vps/Dockerfile.ops
+    <<: *app
+    restart: "no"
+    environment: *pjm-env
+    volumes:
+      - pjm_throttle:/shared-tmp
+      - ../../artifacts:/app/artifacts:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: []
+
+volumes:
+  postgres_data:
+  kafka_data:
+  pjm_throttle:

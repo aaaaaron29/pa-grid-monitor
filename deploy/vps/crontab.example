@@ -1,0 +1,7 @@
+# Install on the server with:  crontab deploy/vps/crontab.example
+# (edit the path first if the repo is not at /opt/pa-grid-monitor). Times are UTC.
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+*/5 * * * *  /opt/pa-grid-monitor/deploy/vps/ops.sh watch
+0 * * * *    /opt/pa-grid-monitor/deploy/vps/ops.sh sync
+15 12 * * *  /opt/pa-grid-monitor/deploy/vps/ops.sh heal

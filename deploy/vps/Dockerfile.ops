@@ -1,0 +1,20 @@
+# One-off jobs on the VPS: the Neon sync, the gap heal (backfill plus re-score) and the
+# freshness check. It carries the model package because rescore_recent.py scores with the
+# detectors. The PJM artifacts are mounted at runtime, never copied in (ARCHITECTURE.md
+# Section 7).
+FROM python:3.12-slim
+
+WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+COPY pyproject.toml ./
+COPY common ./common
+COPY ingestion ./ingestion
+COPY model ./model
+COPY inference ./inference
+COPY scripts ./scripts
+COPY infra ./infra
+
+RUN pip install --no-cache-dir .
