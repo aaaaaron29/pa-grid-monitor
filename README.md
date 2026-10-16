@@ -7,8 +7,9 @@ stress beside them.
 **Live site:** https://gridwatchpa.vercel.app/
 
 **Status.** The pipeline (ingestion, Kafka, Postgres, two inference services, Prometheus,
-Grafana) is built and CI-verified end to end, and the Kubernetes manifests are validated
-against a real cluster in CI. The frontend is built and deployed. Since 2026-10-16 the
+Grafana) is built and CI-verified end to end: CI brings the stack up in a disposable
+Kubernetes cluster and replays a synthetic scenario through Kafka, Postgres and the inference
+service, asserting on exactly which intervals are stored, flagged and declined. The frontend is built and deployed. Since 2026-10-16 the
 pipeline runs around the clock on a single small VPS under Docker Compose
 ([deploy/vps/](deploy/vps/)) rather than a cluster or a personal machine. That stack leaves
 out Prometheus and Grafana, which the website replaced, so they run only in the local

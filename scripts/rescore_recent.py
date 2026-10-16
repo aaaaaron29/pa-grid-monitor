@@ -67,8 +67,9 @@ def rescore_pjm(dsn: str, days: int, dry_run: bool) -> int:
         values, quality = apply_missing_data_policy(
             raw, max_forward_fill_periods=PJM_MAX_FORWARD_FILL_PERIODS
         )
-        history = values[quality != "excluded"]
-        rows = _real_rows(score_since(history, artifact, since), quality)
+        # Excluded periods stay in as NaN so the seasonal lag still lands on the same time of day
+        # (see model.score.score_latest); points they leave without context come back unscored.
+        rows = _real_rows(score_since(values, artifact, since), quality)
         now = datetime.now(UTC)
         for r in rows:
             r["zone"] = zone
@@ -96,8 +97,7 @@ def rescore_eia(dsn: str, days: int, dry_run: bool) -> int:
         respondent="PJM",
     )
     values, quality = apply_missing_data_policy(raw)
-    history = values[quality != "excluded"]
-    rows = _real_rows(score_since(history, artifact, since), quality)
+    rows = _real_rows(score_since(values, artifact, since), quality)
     now = datetime.now(UTC)
     for r in rows:
         r["reading_type"] = "D"

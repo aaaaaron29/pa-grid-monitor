@@ -23,11 +23,23 @@ def min_history_periods(artifact: ModelArtifact) -> int:
     return artifact.seasonal_naive_lag_periods + 1
 
 
+def has_context(result: dict) -> bool:
+    """False when the point could not be scored for lack of context: the reading exactly one
+    seasonal lag earlier, or a recent reading the rolling features need, is missing. The
+    services treat that as a decline to score, never as a score of zero or a made-up one."""
+    return result["residual"] is not None and result["forest_score"] is not None
+
+
 def score_latest(history: pd.Series, artifact: ModelArtifact) -> dict:
-    """`history` must be a complete, gap-handled series (already through
-    model.data.apply_missing_data_policy) ending at the point to be scored, with at least
+    """`history` must be a gap-handled series (already through model.data.apply_missing_data_policy)
+    on a REGULAR time grid ending at the point to be scored, with at least
     min_history_periods(artifact) rows -- raises ValueError rather than silently scoring on
-    too little context."""
+    too little context.
+
+    Excluded periods must stay in the series as NaN, not be dropped. The seasonal-naive
+    forecast shifts by row count, so dropping rows moves "same time last week" to some other
+    time of day and the residual silently measures the wrong thing. With the NaN kept, a hole
+    makes the affected points come back with a null residual (see has_context) instead."""
     required = min_history_periods(artifact)
     if len(history) < required:
         raise ValueError(f"need at least {required} trailing periods, got {len(history)}")
@@ -67,9 +79,11 @@ def score_since(history: pd.Series, artifact: ModelArtifact, since: pd.Timestamp
     score_latest would have returned for each of those points had they been scored one at a
     time as they arrived.
 
-    That equivalence holds because nothing in the pipeline looks forward: the seasonal-naive
-    forecast, the lagged and rolling features, and the detector are all causal, and the
-    detector scores each row on its own. It is what lets the dashboards show a forecast and
+    That equivalence holds for the forecast, the features and the isolation forest, which are
+    all causal and score each row on its own, with one exception: the flatline rule measures
+    the length of a whole run, so in batch it also flags the early rows of a stuck stretch that
+    live scoring, seeing only the run so far, flagged later (pinned in
+    tests/test_replay_scenario.py). The equivalence is what lets the dashboards show a forecast and
     residuals for a stretch the live service skipped (for example, while a gap in the stored
     prices made it decline to score), and it is pinned by a test that compares the two.
 

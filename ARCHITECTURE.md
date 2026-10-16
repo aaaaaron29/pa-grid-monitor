@@ -1109,6 +1109,46 @@ README.md             documents the public/private data split explicitly for any
    schedule from the server, and the machine had 9.5 GB of 96 GB disk and about 6 GB of
    memory free. The first scheduled daily heal (12:15 UTC) had not yet run, so cron-driven
    gap healing is untested; the one heal that has run was started by hand after the cutover.
+   **CI replay test (2026-10-16).** The kind job used to prove only that the images start and
+   report healthy. It now also pushes a synthetic scenario through the real path, in the
+   cluster: `scripts/replay/drive.py` loads a week of history into Postgres as a backfill
+   would, then publishes 48 hours (534 intervals) to Kafka one at a time, and asserts on what
+   comes out. The scenario (`scripts/replay/data.py`) is made up, a daily cycle with bounded
+   noise for one zone, because CI carries no PJM data and makes no live calls. Planted in it
+   are a spike up, a spike down, a 3-hour stuck-sensor stretch and a 3.5-hour outage during
+   which nothing is published. The checks: every published interval is stored with the
+   published price; the outage leaves a hole and nothing fills it; the isolation forest flags
+   exactly the two spikes; the stuck-sensor rule flags exactly the flat stretch from the point
+   its run is long enough; exactly the 12 intervals after the outage are declined and all
+   others scored; `scoring_runs_total` and `anomalies_flagged_total` equal what is in the
+   database; and re-publishing a block of intervals changes no price, score or flag. The
+   artifact it loads is fitted on the clean version of the same series with the threshold just
+   above the highest training score, so the only legitimate flags are the planted ones. That
+   makes it a test of the plumbing, not of detector quality. The driver publishes one interval
+   at a time and waits for it to land in Postgres, because the inference service reads its
+   history back from there and a real poller is five minutes apart; the PJM consumer's batch
+   wait is set to zero for the run through `PJM_CONSUMER_BATCH_WAIT_SECONDS`. The same
+   scenario is also scored offline in `tests/test_replay_scenario.py`, so a bad scenario fails
+   in seconds before a cluster is built.
+
+   What it found. Designing the outage exposed a real bug in the serving path. Both inference
+   services, and the daily heal, removed excluded (too-long-gap) periods from the series
+   before computing the seasonal-naive forecast, which shifts by row count. After any hole
+   longer than the forward fill, "same time last week" therefore pointed at a different time
+   of day, and the residual measured the wrong thing. On a noise-free series whose true
+   residual is zero, a 20-interval hole 100 intervals earlier gave a residual of -4.65.
+   Excluded periods now stay in the series as NaN, so a point whose week-ago reading or recent
+   window is missing comes back with a null residual and is declined instead. Replayed
+   against the old service code, the scenario declined 102 intervals after the outage instead
+   of 12. Two things are not changed and should be known: `model/train.py` and the evaluation
+   scripts still drop excluded rows before shifting, so the artifacts were fitted on residuals
+   that are slightly off near holes (retraining would remove that), and the fix is in the
+   repository but not yet running on the VPS. A second, smaller finding: `score_since`, which
+   the heal uses, is documented as equivalent to scoring each point live, but the flatline rule
+   measures a whole run, so in batch it also flags the first 11 rows of a stuck stretch that
+   live scoring flagged only later. That difference is now pinned by a test and described in the
+   docstring rather than changed.
+
    **Pipeline health page.** `/private/pipeline` shows whether the pipeline is delivering,
    because the website reads only the Neon copy and a dead server otherwise looks the same as
    a quiet one. After each hourly sync, `scripts/sync_to_neon.py` writes one row to

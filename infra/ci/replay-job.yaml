@@ -1,0 +1,25 @@
+# The replay driver as a Job, applied by the k8s-smoke-test CI job after the stack is up.
+# It lives outside infra/k8s on purpose: that directory is the deployable stack, and this is a
+# test fixture that must never be applied to a real cluster. See scripts/replay/drive.py.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: replay
+  namespace: pjm-grid-watch
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 1500
+  template:
+    metadata: { labels: { app: replay } }
+    spec:
+      restartPolicy: Never
+      imagePullSecrets: [{ name: ghcr-pull-secret }]
+      containers:
+        - name: replay
+          image: ghcr.io/aaaaaron29/pa-grid-monitor-ingestion:latest
+          args: ["scripts.replay.drive"]
+          envFrom:
+            - configMapRef: { name: pjm-grid-watch-config }
+            - secretRef: { name: pjm-grid-watch-secrets }
+          env:
+            - { name: PYTHONUNBUFFERED, value: "1" }

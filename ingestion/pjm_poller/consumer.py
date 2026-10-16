@@ -30,7 +30,6 @@ log = logging.getLogger(__name__)
 
 SOURCE = "pjm_consumer"
 BATCH_SIZE = 50
-MAX_BATCH_WAIT_SECONDS = 2.0
 
 
 def _parse_row(raw: dict[str, Any]) -> dict[str, Any]:
@@ -61,7 +60,8 @@ def run_forever(settings: Settings, group_id: str = "pjm-consumer") -> None:
 
         batch_is_full = len(batch) >= BATCH_SIZE
         batch_has_waited_too_long = (
-            batch and (time.monotonic() - batch_started_at) >= MAX_BATCH_WAIT_SECONDS
+            batch
+            and (time.monotonic() - batch_started_at) >= settings.pjm_consumer_batch_wait_seconds
         )
         if batch and (batch_is_full or batch_has_waited_too_long):
             try:

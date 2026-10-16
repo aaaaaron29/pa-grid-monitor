@@ -48,7 +48,7 @@ from inference.skip_tracker import SkipTracker
 from model.artifact import ModelArtifact
 from model.data import apply_missing_data_policy
 from model.data_pjm import ZONES, load_pjm_series
-from model.score import min_history_periods, score_latest
+from model.score import has_context, min_history_periods, score_latest
 
 log = logging.getLogger(__name__)
 _skips = SkipTracker(log)
@@ -81,7 +81,9 @@ def _build_history_plus_current(
     values, quality = apply_missing_data_policy(
         raw, max_forward_fill_periods=MAX_FORWARD_FILL_PERIODS
     )
-    history = values[quality != "excluded"]
+    # Excluded periods stay in as NaN: dropping them would shift the seasonal-naive lag onto the
+    # wrong time of day (see model.score.score_latest).
+    history = values
 
     lmp_price = row.get("lmp_price")
     if lmp_price is None:
@@ -89,7 +91,7 @@ def _build_history_plus_current(
 
     combined = pd.concat([history, pd.Series([float(lmp_price)], index=[period_start])])
     if len(combined) < needed:
-        return None  # not enough settled history yet
+        return None  # not enough history yet
     return combined
 
 
@@ -114,16 +116,23 @@ def _score_and_store(settings: Settings, artifacts: dict[str, ModelArtifact], ro
     started = time.monotonic()
     try:
         result = score_latest(series, artifact)
-        result["zone"] = row["zone"]
-        result["scored_at"] = datetime.now(UTC)
-
-        with connect(settings.postgres_dsn) as conn:
-            upsert_pjm_lmp_anomalies(conn, [result])
+        declined = not has_context(result)
+        if not declined:
+            result["zone"] = row["zone"]
+            result["scored_at"] = datetime.now(UTC)
+            with connect(settings.postgres_dsn) as conn:
+                upsert_pjm_lmp_anomalies(conn, [result])
     except Exception:
         SCORING_RUNS_TOTAL.labels(tier=TIER, outcome="error").inc()
         raise
     finally:
         SCORING_LATENCY_SECONDS.labels(tier=TIER).observe(time.monotonic() - started)
+
+    if declined:
+        # The reading a week earlier, or one the rolling features need, is missing.
+        _skips.skipped(row["zone"], period_start=row["period_start"])
+        SCORING_RUNS_TOTAL.labels(tier=TIER, outcome="skipped").inc()
+        return
 
     SCORING_RUNS_TOTAL.labels(tier=TIER, outcome="scored").inc()
     _skips.scored(row["zone"])

@@ -304,6 +304,7 @@ jobs:
     # excludes it by construction, not by an explicit skip).
     runs-on: ubuntu-latest
     needs: lint-and-test
+    timeout-minutes: 45
     permissions:
       contents: read
       packages: write
@@ -360,6 +361,13 @@ jobs:
                   f"artifacts/pjm_detector_{zone}.joblib"
               )
           EOF
+
+      - name: Fit the replay artifacts
+        # The replay test (scripts/replay, below) needs a detector fitted on its own synthetic
+        # series, so that the only flags it can legitimately produce are the planted ones.
+        # This replaces the generic PJM artifacts from the step above, which flag 10% of
+        # everything by design. Still nothing here is real PJM data.
+        run: python -m scripts.replay.make_artifact artifacts
 
       - uses: docker/login-action@v3
         with:
@@ -463,6 +471,24 @@ jobs:
           echo "Timed out waiting for both /health endpoints to report ready."
           exit 1
 
+      - name: Replay a synthetic scenario through the whole stack
+        # What the steps above cannot show: that values actually flow Kafka -> consumer ->
+        # Postgres -> inference -> flags, and come out right. scripts/replay/drive.py loads a
+        # week of history, publishes 48 hours through Kafka one interval at a time (a spike
+        # up, a spike down, a stuck-sensor stretch, and a 3.5 hour outage planted at known
+        # intervals), and asserts on exactly which intervals are flagged, declined and stored,
+        # that the service's own counters agree with the database, and that re-publishing
+        # changes nothing. Synthetic data only: CI makes no live API calls and carries no
+        # PJM data. The consumer's batch wait is set to zero so each interval is written as it
+        # arrives; the default of two seconds would stretch the replay to twenty minutes.
+        run: |
+          kubectl -n pjm-grid-watch set env deployment/pjm-consumer PJM_CONSUMER_BATCH_WAIT_SECONDS=0
+          kubectl -n pjm-grid-watch rollout status deployment/pjm-consumer --timeout=120s
+          kubectl apply -f infra/ci/replay-job.yaml
+          kubectl -n pjm-grid-watch wait --for=jsonpath='{.status.phase}'=Running pod -l app=replay --timeout=300s
+          kubectl -n pjm-grid-watch logs -f job/replay
+          kubectl -n pjm-grid-watch wait --for=condition=complete job/replay --timeout=60s
+
       - name: Describe pods and recent events (on failure)
         if: failure()
         run: |
@@ -475,7 +501,7 @@ jobs:
         # Only the apps this job actually applies -- the pollers (11-ingestion-pollers.yaml)
         # never run here, so there'd be nothing to log for them.
         run: |
-          for app in eia-consumer pjm-consumer pjm-load-consumer eia-inference pjm-inference; do
+          for app in eia-consumer pjm-consumer pjm-load-consumer eia-inference pjm-inference replay; do
             echo "=== $app ==="
             kubectl -n pjm-grid-watch logs -l app=$app --tail=100 --all-containers || true
           done

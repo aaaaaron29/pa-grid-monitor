@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     # documents every var the stack will eventually read.
     pjm_api_key: str = ""
     pjm_poll_interval_seconds: int = 300
+    # How long the LMP consumer holds a partial batch before writing it. The default keeps
+    # writes batched; the CI replay test lowers it so one interval at a time reaches Postgres
+    # quickly (the inference service reads its history back from there).
+    pjm_consumer_batch_wait_seconds: float = 2.0
     # hrl_load_metered posts once daily, not every 5 minutes like the LMP feed -- polling it
     # at the same cadence as LMP would just re-fetch the same day's data repeatedly. Default
     # matches its own posting cadence (confirmed live 2026-10-14: "Daily 05:30 a.m.").
