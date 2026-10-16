@@ -1149,6 +1149,16 @@ README.md             documents the public/private data split explicitly for any
    live scoring flagged only later. That difference is now pinned by a test and described in the
    docstring rather than changed.
 
+   The first run of the replay in CI found a third problem before it got as far as scoring: the
+   Kafka StatefulSet in `infra/k8s` never became Ready. Its probes ran
+   `kafka-broker-api-versions.sh`, which starts a JVM each time and exceeds a probe's default
+   one-second timeout on a small node, so the pod stayed unready, the headless Service never
+   resolved `kafka`, and the liveness probe kept killing a working broker. The earlier kind
+   job did not notice because nothing in it needed Kafka reachable; the manifests had been
+   called "verified against a real cluster" while the broker was crash-looping. The probes are
+   now TCP checks with a startup probe, and the job waits for `kafka-0` to be Ready before
+   the replay.
+
    **Pipeline health page.** `/private/pipeline` shows whether the pipeline is delivering,
    because the website reads only the Neon copy and a dead server otherwise looks the same as
    a quiet one. After each hourly sync, `scripts/sync_to_neon.py` writes one row to

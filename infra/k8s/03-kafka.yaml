@@ -35,17 +35,24 @@ spec:
           volumeMounts:
             - name: kafka-data
               mountPath: /var/lib/kafka/data
+          # TCP probes, not kafka-broker-api-versions.sh. That script starts a JVM every time
+          # and takes longer than a probe's default 1 second timeout, so on a small node it
+          # always timed out: the pod never became Ready, the headless Service never resolved
+          # `kafka`, and the liveness probe kept killing a healthy broker. Found by the CI
+          # replay test, the first thing to need Kafka reachable in the cluster. The startup
+          # probe gives a slow first boot up to 150 seconds before the others take over.
+          startupProbe:
+            tcpSocket: { port: 9092 }
+            periodSeconds: 5
+            failureThreshold: 30
           readinessProbe:
-            exec:
-              command: ["/opt/kafka/bin/kafka-broker-api-versions.sh", "--bootstrap-server", "localhost:9092"]
-            initialDelaySeconds: 10
+            tcpSocket: { port: 9092 }
             periodSeconds: 10
-            failureThreshold: 6
+            failureThreshold: 3
           livenessProbe:
-            exec:
-              command: ["/opt/kafka/bin/kafka-broker-api-versions.sh", "--bootstrap-server", "localhost:9092"]
-            initialDelaySeconds: 30
+            tcpSocket: { port: 9092 }
             periodSeconds: 20
+            failureThreshold: 6
   volumeClaimTemplates:
     - metadata:
         name: kafka-data

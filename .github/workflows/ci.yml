@@ -471,6 +471,11 @@ jobs:
           echo "Timed out waiting for both /health endpoints to report ready."
           exit 1
 
+      - name: Wait for Kafka to be ready
+        # Nothing above needed Kafka reachable, so until the replay test existed a broker that
+        # never became Ready (its exec probe timed out) went unnoticed. Say so plainly here.
+        run: kubectl -n pjm-grid-watch wait --for=condition=ready pod/kafka-0 --timeout=300s
+
       - name: Replay a synthetic scenario through the whole stack
         # What the steps above cannot show: that values actually flow Kafka -> consumer ->
         # Postgres -> inference -> flags, and come out right. scripts/replay/drive.py loads a
@@ -501,7 +506,7 @@ jobs:
         # Only the apps this job actually applies -- the pollers (11-ingestion-pollers.yaml)
         # never run here, so there'd be nothing to log for them.
         run: |
-          for app in eia-consumer pjm-consumer pjm-load-consumer eia-inference pjm-inference replay; do
+          for app in kafka eia-consumer pjm-consumer pjm-load-consumer eia-inference pjm-inference replay; do
             echo "=== $app ==="
             kubectl -n pjm-grid-watch logs -l app=$app --tail=100 --all-containers || true
           done
