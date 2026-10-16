@@ -24,6 +24,11 @@ export default async function AccountabilityPage() {
     return index >= 0 ? { index, label: c.label } : null;
   }).filter((a): a is { index: number; label: string } => a !== null);
 
+  const loadSeries = [
+    { key: "peakMw", color: "var(--aqua)", label: "Monthly peak (MW)" },
+    { key: "avgMw", color: "var(--blue)", label: "Monthly average (MW)" },
+  ];
+
   const first = yoy[0];
   const last = yoy[yoy.length - 1];
 
@@ -56,36 +61,53 @@ export default async function AccountabilityPage() {
       )}
 
       <div className="mt-6">
-        <ChartCard title="PPL zone load, monthly average & peak" meta="PJM hrl_load_metered, live">
+        <ChartCard
+          title="PPL zone load, monthly average & peak"
+          meta="PJM hrl_load_metered, live"
+          legend={
+            <ChartLegend
+              series={[
+                { key: "avgMw", color: "var(--blue)", label: "Monthly average (MW)" },
+                { key: "peakMw", color: "var(--aqua)", label: "Monthly peak (MW)" },
+              ]}
+            />
+          }
+          footnote={
+            <>
+              <span className="block">
+                Numbered markers: <b>1</b> Q1&apos;24 ~3GW signed &middot; <b>2</b> Aug&apos;25
+                800MW-by-2026/14.4GW-by-2034 forecast &middot; <b>3</b> Q4&apos;25 25.2GW signed
+                &middot; <b>4</b> Jan&apos;26 PJM peak forecast raised to 12,000MW &middot;{" "}
+                <b>5</b> Q2&apos;26 31.8GW pipeline
+              </span>
+              <span className="mt-2 block">
+                The final month may be incomplete, so its average and peak can sit below a full
+                month&apos;s. Compare same months across years rather than reading the last point
+                as a trend.
+              </span>
+            </>
+          }
+          expanded={
+            <LineChart
+              data={monthly}
+              xKey="month"
+              series={loadSeries}
+              annotations={annotations}
+              xLabelEvery={3}
+              xKind="month"
+              fill
+            />
+          }
+        >
           <LineChart
             data={monthly}
             xKey="month"
-            series={[
-              { key: "peakMw", color: "var(--aqua)", label: "Monthly peak (MW)" },
-              { key: "avgMw", color: "var(--blue)", label: "Monthly average (MW)" },
-            ]}
+            series={loadSeries}
             annotations={annotations}
             xLabelEvery={6}
             xKind="month"
             height={260}
           />
-          <ChartLegend
-            series={[
-              { key: "avgMw", color: "var(--blue)", label: "Monthly average (MW)" },
-              { key: "peakMw", color: "var(--aqua)", label: "Monthly peak (MW)" },
-            ]}
-          />
-          <p className="mt-3 text-[0.8rem]" style={{ color: "var(--ink-2)" }}>
-            Numbered markers: <b>1</b> Q1&apos;24 ~3GW signed &middot; <b>2</b> Aug&apos;25
-            800MW-by-2026/14.4GW-by-2034 forecast &middot; <b>3</b> Q4&apos;25 25.2GW signed
-            &middot; <b>4</b> Jan&apos;26 PJM peak forecast raised to 12,000MW &middot;{" "}
-            <b>5</b> Q2&apos;26 31.8GW pipeline
-          </p>
-          <p className="mt-2 text-[0.8rem]" style={{ color: "var(--ink-2)" }}>
-            The final month may be incomplete, so its average and peak can sit below a full
-            month&apos;s. Compare same months across years rather than reading the last point as
-            a trend.
-          </p>
         </ChartCard>
       </div>
 

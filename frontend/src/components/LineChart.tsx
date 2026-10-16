@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { MinusIcon, PlusIcon, ResetIcon } from "@/components/icons";
 
 export interface ChartSeries {
   key: string;
@@ -31,6 +32,10 @@ export interface LineChartProps<T extends Row> {
   yFormat?: YFormat;
   annotations?: ChartAnnotation[];
   height?: number;
+  /** Fill the parent's height instead of using `height`. For the enlarged view. */
+  fill?: boolean;
+  /** Wheel to zoom, drag to pan, with the value axis rescaled to what is on screen. */
+  zoomable?: boolean;
   /** Month charts only: label every Nth point. Defaults to a spacing that fits the width. */
   xLabelEvery?: number;
   emptyMessage?: string;
@@ -56,9 +61,13 @@ function tooltipLabel(kind: XKind, raw: unknown) {
 
 const DEFAULT_W = 700;
 const MIN_TICK_GAP = 56;
+const PAD_L = 58;
+const PAD_R = 14;
+const MIN_ZOOM_POINTS = 24; // two hours of 5-minute data
+const HOUR_STEPS = [1, 2, 3, 4, 6, 12, 24];
 
 export function LineChart<T extends Row>({
-  data,
+  data: fullData,
   series,
   xKey = "t",
   xKind = "datetime",
@@ -66,33 +75,86 @@ export function LineChart<T extends Row>({
   yFormat = "number",
   annotations,
   height = 220,
+  fill = false,
+  zoomable = false,
   xLabelEvery,
   emptyMessage = "No data yet.",
 }: LineChartProps<T>) {
   const wrapRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ x: number; start: number; len: number } | null>(null);
   const [W, setW] = useState(DEFAULT_W);
+  const [measuredH, setMeasuredH] = useState(0);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const [range, setRange] = useState<[number, number] | null>(null);
+  const [dragging, setDragging] = useState(false);
 
   // Draw in real pixels so text and markers keep their proportions at every card width.
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
-    const measure = () => setW(Math.max(260, Math.round(el.getBoundingClientRect().width)));
+    const measure = () => {
+      const rect = el.getBoundingClientRect();
+      setW(Math.max(260, Math.round(rect.width)));
+      setMeasuredH(Math.round(rect.height));
+    };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
 
-  const H = height;
-  const padL = 58;
-  const padR = 14;
-  const padT = annotations?.length ? 34 : 12;
+  const total = fullData.length - 1;
+  const rng = range && range[1] <= total ? range : null;
+  const lo = rng ? Math.round(rng[0]) : 0;
+  const hi = rng ? Math.round(rng[1]) : total;
+  const data = useMemo(() => (rng ? fullData.slice(lo, hi + 1) : fullData), [fullData, rng, lo, hi]);
+  const visAnnotations = useMemo(
+    () => annotations?.filter((a) => a.index >= lo && a.index <= hi).map((a) => ({ ...a, index: a.index - lo })),
+    [annotations, lo, hi],
+  );
+
+  const H = fill ? Math.max(260, measuredH) : height;
+  const padL = PAD_L;
+  const padR = PAD_R;
+  const padT = annotations?.length ? 34 : zoomable ? 44 : 12;
   const padB = 28;
   const plotW = W - padL - padR;
   const plotH = H - padT - padB;
 
   const fmt = (n: number) => formatY(yFormat, n);
+
+  // Zoom keeps the point under the cursor fixed. `factor` above 1 zooms in.
+  const zoomBy = useCallback(
+    (frac: number, factor: number) => {
+      setRange((cur) => {
+        if (total <= 0) return cur;
+        const [s, e] = cur && cur[1] <= total ? cur : [0, total];
+        const len = e - s;
+        const next = Math.min(total, Math.max(Math.min(total, MIN_ZOOM_POINTS), len / factor));
+        if (next >= total) return null;
+        const anchor = s + frac * len;
+        const start = Math.max(0, Math.min(total - next, anchor - frac * next));
+        return [start, start + next];
+      });
+    },
+    [total],
+  );
+
+  // Wheel zoom only inside the plot, so the page still scrolls everywhere else.
+  useEffect(() => {
+    if (!zoomable) return;
+    const el = wrapRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      const px = e.clientX - el.getBoundingClientRect().left;
+      if (px < PAD_L || px > W - PAD_R) return;
+      e.preventDefault();
+      const frac = Math.min(1, Math.max(0, (px - PAD_L) / (W - PAD_L - PAD_R)));
+      zoomBy(frac, Math.exp(-e.deltaY * 0.0018));
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [zoomable, zoomBy, W]);
 
   const { vMin, vMax } = useMemo(() => {
     const values: number[] = [];
@@ -114,11 +176,33 @@ export function LineChart<T extends Row>({
   const x = (i: number) => padL + (i / Math.max(data.length - 1, 1)) * plotW;
   const y = (v: number) => padT + plotH - ((v - vMin) / (vMax - vMin || 1)) * plotH;
 
-  // Which points get an x label: day starts for timestamps, every Nth for months, then
-  // thinned so neighbours never collide.
+  // When what is on screen spans two days or less, label hours instead of days.
+  const hourStep = useMemo(() => {
+    if (xKind !== "datetime" || data.length < 2) return null;
+    const a = Date.parse(String(data[0][xKey]));
+    const b = Date.parse(String(data[data.length - 1][xKey]));
+    const span = (b - a) / 3.6e6;
+    if (!Number.isFinite(span) || span > 48) return null;
+    return HOUR_STEPS.find((step) => span / step <= plotW / MIN_TICK_GAP) ?? 24;
+  }, [data, xKey, xKind, plotW]);
+
+  const tickText = (i: number) => {
+    const s = String(data[i][xKey] ?? "");
+    if (hourStep === null) return tickLabel(xKind, s);
+    const hour = Number(s.slice(11, 13));
+    return hour === 0 ? s.slice(5, 10) : `${s.slice(11, 13)}:00`;
+  };
+
+  // Which points get an x label: day starts for timestamps (or whole hours when zoomed in),
+  // every Nth for months, then thinned so neighbours never collide.
   const tickIndices = useMemo(() => {
     const candidates: number[] = [];
-    if (xKind === "datetime") {
+    if (xKind === "datetime" && hourStep !== null) {
+      for (let i = 0; i < data.length; i++) {
+        const s = String(data[i][xKey] ?? "");
+        if (s.slice(14, 16) === "00" && Number(s.slice(11, 13)) % hourStep === 0) candidates.push(i);
+      }
+    } else if (xKind === "datetime") {
       for (let i = 0; i < data.length; i++) {
         const cur = String(data[i][xKey] ?? "").slice(0, 10);
         const prev = i > 0 ? String(data[i - 1][xKey] ?? "").slice(0, 10) : "";
@@ -140,7 +224,7 @@ export function LineChart<T extends Row>({
       }
     }
     return kept;
-  }, [data, xKey, xKind, xLabelEvery, plotW]);
+  }, [data, xKey, xKind, xLabelEvery, plotW, hourStep, padL]);
 
   // A new subpath starts after every gap, so a null value never leaves a path beginning with "L".
   const linePath = (key: string) => {
@@ -167,12 +251,57 @@ export function LineChart<T extends Row>({
     setHoverIndex(i);
   }
 
+  function handleDown(evt: React.PointerEvent<SVGRectElement>) {
+    handleMove(evt);
+    if (!zoomable || !rng) return;
+    dragRef.current = { x: evt.clientX, start: rng[0], len: rng[1] - rng[0] };
+    evt.currentTarget.setPointerCapture(evt.pointerId);
+    setDragging(true);
+  }
+
+  function handlePointerMove(evt: React.PointerEvent<SVGRectElement>) {
+    const drag = dragRef.current;
+    if (drag) {
+      const start = Math.max(0, Math.min(total - drag.len, drag.start - ((evt.clientX - drag.x) / plotW) * drag.len));
+      setRange([start, start + drag.len]);
+    }
+    handleMove(evt);
+  }
+
+  function endDrag() {
+    dragRef.current = null;
+    setDragging(false);
+  }
+
   const hovered = hoverIndex !== null ? data[hoverIndex] : null;
   const steps = 4;
   const label = `Line chart of ${series.map((s) => s.label).join(" and ")}`;
+  const flagRadius = fill ? 5 : 4.5;
 
   return (
-    <div ref={wrapRef} className="relative w-full min-w-0" style={{ minHeight: H }}>
+    <div
+      ref={wrapRef}
+      className="relative w-full min-w-0"
+      style={fill ? { height: "100%", minHeight: 260 } : { minHeight: H }}
+    >
+      {zoomable && data.length > 0 && (
+        <div className="absolute top-0 right-0 z-10 flex items-center gap-1.5">
+          <span className="mr-1 hidden text-[0.75rem] sm:inline" style={{ color: "var(--ink-2)" }}>
+            Scroll to zoom, drag to pan
+          </span>
+          <ZoomButton label="Zoom out" onClick={() => zoomBy(0.5, 1 / 1.6)} disabled={!rng}>
+            <MinusIcon />
+          </ZoomButton>
+          <ZoomButton label="Zoom in" onClick={() => zoomBy(0.5, 1.6)}>
+            <PlusIcon />
+          </ZoomButton>
+          {rng && (
+            <ZoomButton label="Reset zoom" onClick={() => setRange(null)}>
+              <ResetIcon />
+            </ZoomButton>
+          )}
+        </div>
+      )}
       {data.length === 0 ? (
         <div className="flex items-center justify-center text-sm" style={{ height: H, color: "var(--ink-2)" }}>
           {emptyMessage}
@@ -183,7 +312,7 @@ export function LineChart<T extends Row>({
           height={H}
           role="img"
           aria-label={label}
-          className="block w-full touch-pan-y"
+          className={`block w-full ${zoomable ? "touch-none" : "touch-pan-y"}`}
           style={{ overflow: "visible" }}
         >
           {Array.from({ length: steps + 1 }).map((_, s) => {
@@ -208,7 +337,7 @@ export function LineChart<T extends Row>({
               fontSize={11}
               fill="var(--ink-2)"
             >
-              {tickLabel(xKind, data[i][xKey])}
+              {tickText(i)}
             </text>
           ))}
 
@@ -218,7 +347,7 @@ export function LineChart<T extends Row>({
               d={linePath(s.key)}
               fill="none"
               stroke={s.color}
-              strokeWidth={2}
+              strokeWidth={fill ? 2.25 : 2}
               strokeLinejoin="round"
               strokeLinecap="round"
             />
@@ -234,7 +363,7 @@ export function LineChart<T extends Row>({
                   key={i}
                   cx={x(i)}
                   cy={y(v)}
-                  r={4.5}
+                  r={flagRadius}
                   fill="var(--red)"
                   stroke="var(--surface-1)"
                   strokeWidth={1.5}
@@ -243,12 +372,13 @@ export function LineChart<T extends Row>({
             })}
 
           {(() => {
+            if (hi !== total) return null;
             const lastV = data[data.length - 1][series[0].key];
             if (typeof lastV !== "number") return null;
             return <circle cx={x(data.length - 1)} cy={y(lastV)} r={3} fill={series[0].color} />;
           })()}
 
-          {annotations?.map((a) => {
+          {visAnnotations?.map((a) => {
             const ax = x(a.index);
             return (
               <g key={a.index}>
@@ -261,7 +391,7 @@ export function LineChart<T extends Row>({
             );
           })}
 
-          {hoverIndex !== null && (
+          {hoverIndex !== null && hoverIndex < data.length && (
             <g>
               <line x1={x(hoverIndex)} x2={x(hoverIndex)} y1={padT} y2={padT + plotH} stroke="var(--baseline)" strokeWidth={1} />
               {series.map((s) => {
@@ -280,8 +410,11 @@ export function LineChart<T extends Row>({
             width={plotW}
             height={plotH}
             fill="transparent"
-            onPointerMove={handleMove}
-            onPointerDown={handleMove}
+            style={{ cursor: zoomable && rng ? (dragging ? "grabbing" : "grab") : undefined }}
+            onPointerMove={handlePointerMove}
+            onPointerDown={handleDown}
+            onPointerUp={endDrag}
+            onPointerCancel={endDrag}
             onPointerLeave={() => setHoverIndex(null)}
           />
         </svg>
@@ -311,6 +444,32 @@ export function LineChart<T extends Row>({
         </div>
       )}
     </div>
+  );
+}
+
+function ZoomButton({
+  label,
+  onClick,
+  disabled,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      disabled={disabled}
+      className="grid size-8 place-items-center rounded-md border transition-colors hover:text-[var(--ink-1)] disabled:opacity-40"
+      style={{ background: "var(--surface-1)", borderColor: "var(--baseline)", color: "var(--ink-2)" }}
+    >
+      {children}
+    </button>
   );
 }
 

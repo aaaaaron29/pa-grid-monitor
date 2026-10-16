@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   PA_COUNTIES,
   PA_UNITS_PER_MILE,
@@ -14,6 +14,7 @@ import { POWER_PLANTS } from "@/data/powerPlants";
 import { DcDetail } from "@/components/DcDetail";
 import { ProjectTable } from "@/components/ProjectTable";
 import { STATUS, STATUS_ORDER, StatusIcon, isStatus } from "@/components/mapStatus";
+import { CloseIcon, ExpandIcon, MinusIcon, PlusIcon, ResetIcon } from "@/components/icons";
 
 // Public geography + publicly reported projects only. PJM zone figures reach this component
 // ONLY through the `zoneStats` prop, which /private/map alone supplies, so the public /map
@@ -45,6 +46,27 @@ const VB_W = PA_VIEWBOX.w + PAD * 2;
 const VB_H = PA_VIEWBOX.h + PAD * 2;
 
 const RING_MILES = [1, 5];
+const MIN_VIEW_W = 12; // closest zoom: about 3.6 miles across
+const FULL_VB = { x: -PAD, y: -PAD, w: VB_W, h: VB_H };
+
+type Box = { x: number; y: number; w: number; h: number };
+type UserView = { w: number; cx: number; cy: number };
+
+/** Widen or heighten a view box (about its center) until it matches the screen's aspect. */
+function fitAspect(b: Box, ar: number): Box {
+  let { w, h } = b;
+  if (ar > w / h) w = h * ar;
+  else h = w / ar;
+  return { x: b.x + b.w / 2 - w / 2, y: b.y + b.h / 2 - h / 2, w, h };
+}
+
+function clampView(v: UserView): UserView {
+  return {
+    w: v.w,
+    cx: Math.min(PA_VIEWBOX.w, Math.max(0, v.cx)),
+    cy: Math.min(PA_VIEWBOX.h, Math.max(0, v.cy)),
+  };
+}
 const ZOOM_WINDOW_MILES = 26; // map width shown while the rings are on
 
 function fmtPrice(v: number | null) {
@@ -90,7 +112,14 @@ export function PaMap({ zoneStats }: { zoneStats?: Partial<Record<ZoneName, Zone
   const isPrivate = Boolean(zoneStats);
   const wrapRef = useRef<HTMLDivElement>(null);
   const topRef = useRef<HTMLDivElement>(null);
+  const asideRef = useRef<HTMLElement>(null);
+  const enlargeRef = useRef<HTMLButtonElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
   const [width, setWidth] = useState(700);
+  const [boxH, setBoxH] = useState(0);
+  const [expanded, setExpanded] = useState(false);
+  const [userView, setUserView] = useState<UserView | null>(null);
+  const [placeholderH, setPlaceholderH] = useState(0);
   const [selection, setSelection] = useState<Selection>(null);
   const [hover, setHover] = useState<Hover>(null);
   const [showUtilities, setShowUtilities] = useState(true);
@@ -106,7 +135,11 @@ export function PaMap({ zoneStats }: { zoneStats?: Partial<Record<ZoneName, Zone
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
-    const measure = () => setWidth(Math.max(280, el.getBoundingClientRect().width));
+    const measure = () => {
+      const rect = el.getBoundingClientRect();
+      setWidth(Math.max(280, rect.width));
+      setBoxH(rect.height);
+    };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
@@ -145,14 +178,156 @@ export function PaMap({ zoneStats }: { zoneStats?: Partial<Record<ZoneName, Zone
 
   // With rings on, the map zooms to a window around the project, since a one-mile ring is a
   // few pixels wide at statewide scale. Everything else is sized in screen units via `u`.
-  const vb = useMemo(() => {
-    if (!showRings || !ringDc) return { x: -PAD, y: -PAD, w: VB_W, h: VB_H };
+  const autoVb = useMemo<Box>(() => {
+    if (!showRings || !ringDc) return FULL_VB;
     const w = ZOOM_WINDOW_MILES * PA_UNITS_PER_MILE;
     const h = w * (VB_H / VB_W);
     return { x: ringDc.x - w / 2, y: ringDc.y - h / 2, w, h };
   }, [showRings, ringDc]);
-  const zoomed = vb.w < VB_W;
+  const zoomed = autoVb.w < VB_W;
+
+  // Enlarged: the view matches the screen's shape, and the reader's own zoom and pan win.
+  const aspect = expanded && boxH > 0 ? width / boxH : VB_W / VB_H;
+  const vb = useMemo<Box>(() => {
+    if (!expanded) return autoVb;
+    if (!userView) return fitAspect(autoVb, aspect);
+    const h = userView.w / aspect;
+    return { x: userView.cx - userView.w / 2, y: userView.cy - h / 2, w: userView.w, h };
+  }, [expanded, autoVb, userView, aspect]);
   const u = vb.w / width;
+
+  const vbRef = useRef(vb);
+  const aspectRef = useRef(aspect);
+  useEffect(() => {
+    vbRef.current = vb;
+    aspectRef.current = aspect;
+  });
+
+  // Zoom about a point given as fractions of the map frame; factor above 1 zooms in.
+  const zoomAt = useCallback((fx: number, fy: number, factor: number) => {
+    const cur = vbRef.current;
+    const ar = aspectRef.current;
+    const maxW = fitAspect(FULL_VB, ar).w;
+    const w = Math.min(maxW, Math.max(MIN_VIEW_W, cur.w / factor));
+    const h = w / ar;
+    const x = cur.x + fx * cur.w - fx * w;
+    const y = cur.y + fy * cur.h - fy * h;
+    vbRef.current = { x, y, w, h };
+    setUserView(clampView({ w, cx: x + w / 2, cy: y + h / 2 }));
+  }, []);
+
+  const panBy = useCallback((dxUnits: number, dyUnits: number) => {
+    const cur = vbRef.current;
+    const x = cur.x - dxUnits;
+    const y = cur.y - dyUnits;
+    vbRef.current = { ...cur, x, y };
+    setUserView(clampView({ w: cur.w, cx: x + cur.w / 2, cy: y + cur.h / 2 }));
+  }, []);
+
+  const openExpanded = () => {
+    setPlaceholderH(wrapRef.current?.getBoundingClientRect().height ?? 0);
+    setUserView(null);
+    setExpanded(true);
+  };
+  const closeExpanded = useCallback(() => {
+    setExpanded(false);
+    setUserView(null);
+    requestAnimationFrame(() => enlargeRef.current?.focus());
+  }, []);
+
+  // While enlarged: the page behind does not scroll, focus starts on Close, the wheel zooms
+  // the map, and the keyboard can zoom, pan, reset and leave.
+  useEffect(() => {
+    if (!expanded) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    closeRef.current?.focus();
+    const el = wrapRef.current;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = el!.getBoundingClientRect();
+      zoomAt((e.clientX - rect.left) / rect.width, (e.clientY - rect.top) / rect.height, Math.exp(-e.deltaY * 0.0015));
+    };
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+      const step = vbRef.current.w * 0.12;
+      if (e.key === "Tab" && el) {
+        const items = Array.from(el.querySelectorAll<HTMLElement>('button, select, [tabindex="0"]')).filter(
+          (n) => !n.hasAttribute("disabled"),
+        );
+        if (items.length === 0) return;
+        const first = items[0];
+        const last = items[items.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+        return;
+      }
+      if (e.key === "Escape") closeExpanded();
+      else if (e.key === "+" || e.key === "=") zoomAt(0.5, 0.5, 1.5);
+      else if (e.key === "-" || e.key === "_") zoomAt(0.5, 0.5, 1 / 1.5);
+      else if (e.key === "0") setUserView(null);
+      else if (e.key === "ArrowLeft") panBy(step, 0);
+      else if (e.key === "ArrowRight") panBy(-step, 0);
+      else if (e.key === "ArrowUp") panBy(0, step);
+      else if (e.key === "ArrowDown") panBy(0, -step);
+      else return;
+      e.preventDefault();
+    };
+    el?.addEventListener("wheel", onWheel, { passive: false });
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = previous;
+      el?.removeEventListener("wheel", onWheel);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [expanded, zoomAt, panBy, closeExpanded]);
+
+  // Drag to pan, two fingers to pinch. A drag must not also count as a click on what it started on.
+  const pointers = useRef(new Map<number, { x: number; y: number; sx: number; sy: number }>());
+  const gesture = useRef({ moved: false, lastDist: 0 });
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (!expanded || (e.target as Element).closest("button, select, label")) return;
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY });
+    gesture.current = { moved: false, lastDist: 0 };
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    const p = pointers.current.get(e.pointerId);
+    if (!expanded || !p) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const dx = e.clientX - p.x;
+    const dy = e.clientY - p.y;
+    p.x = e.clientX;
+    p.y = e.clientY;
+    if (!gesture.current.moved && Math.hypot(e.clientX - p.sx, e.clientY - p.sy) < 5) return;
+    if (!gesture.current.moved) {
+      gesture.current.moved = true;
+      setHover(null);
+      e.currentTarget.setPointerCapture(e.pointerId);
+    }
+    if (pointers.current.size >= 2) {
+      const [a, b] = Array.from(pointers.current.values());
+      const dist = Math.hypot(a.x - b.x, a.y - b.y);
+      if (gesture.current.lastDist > 0) {
+        const mx = ((a.x + b.x) / 2 - rect.left) / rect.width;
+        const my = ((a.y + b.y) / 2 - rect.top) / rect.height;
+        zoomAt(mx, my, dist / gesture.current.lastDist);
+      }
+      gesture.current.lastDist = dist;
+    } else {
+      const perPx = vbRef.current.w / rect.width;
+      panBy(dx * perPx, dy * perPx);
+    }
+  };
+  const onPointerEnd = (e: React.PointerEvent) => {
+    pointers.current.delete(e.pointerId);
+    gesture.current.lastDist = 0;
+  };
 
   const countsByStatus = useMemo(() => {
     const counts = Object.fromEntries(STATUS_ORDER.map((s) => [s, 0])) as Record<StatusCategory, number>;
@@ -173,6 +348,14 @@ export function PaMap({ zoneStats }: { zoneStats?: Partial<Record<ZoneName, Zone
   const filtering = active.size !== STATUS_ORDER.length || query.trim() !== "";
 
   const countyByFips = useMemo(() => new Map(PA_COUNTIES.map((c) => [c.fips, c])), []);
+  const selectedDc = selection?.kind === "dc" ? (DATA_CENTERS.find((d) => d.id === selection.id) ?? null) : null;
+  const selectionLabel = !selection
+    ? null
+    : selection.kind === "dc"
+      ? (selectedDc?.name ?? null)
+      : selection.kind === "county"
+        ? `${countyByFips.get(selection.id)?.name ?? ""} County`
+        : (PA_UTILITIES.find((x) => x.id === selection.id)?.name ?? null);
   const dcByCounty = useMemo(() => {
     const m = new Map<string, DataCenter[]>();
     for (const dc of visible) {
@@ -215,8 +398,12 @@ export function PaMap({ zoneStats }: { zoneStats?: Partial<Record<ZoneName, Zone
     return color ? { fill: color, opacity: 0.3 * dim } : { fill: OTHER_COLOR, opacity: 0.12 * dim };
   };
 
-  const select = (s: Selection) => setSelection((cur) => (cur && s && cur.kind === s.kind && cur.id === s.id ? null : s));
+  const select = (s: Selection) => {
+    setUserView(null);
+    setSelection((cur) => (cur && s && cur.kind === s.kind && cur.id === s.id ? null : s));
+  };
   const pick = (id: string) => {
+    setUserView(null);
     setSelection({ kind: "dc", id });
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     topRef.current?.scrollIntoView({ block: "start", behavior: reduce ? "auto" : "smooth" });
@@ -313,14 +500,35 @@ export function PaMap({ zoneStats }: { zoneStats?: Partial<Record<ZoneName, Zone
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_21rem]">
         <div className="min-w-0">
+          <div style={expanded ? { height: placeholderH } : undefined}>
+          {expanded && (
+            <div className="fixed inset-0 z-[45] bg-black/60" onClick={closeExpanded} aria-hidden="true" />
+          )}
           <div
             ref={wrapRef}
-            className="relative overflow-hidden rounded-[10px] border"
-            style={{ background: "var(--surface-1)", borderColor: "var(--border)" }}
+            role={expanded ? "dialog" : undefined}
+            aria-modal={expanded || undefined}
+            aria-label={expanded ? "Enlarged map of Pennsylvania data center projects" : undefined}
+            className={
+              expanded
+                ? "fixed inset-3 z-50 touch-none overflow-hidden rounded-[10px] border shadow-2xl"
+                : "relative overflow-hidden rounded-[10px] border"
+            }
+            style={{ background: "var(--surface-1)", borderColor: "var(--border)", cursor: expanded ? "grab" : undefined }}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerEnd}
+            onPointerCancel={onPointerEnd}
+            onClickCapture={(e) => {
+              if (gesture.current.moved) {
+                e.stopPropagation();
+                gesture.current.moved = false;
+              }
+            }}
           >
             <svg
               viewBox={`${vb.x} ${vb.y} ${vb.w} ${vb.h}`}
-              className="block h-auto w-full"
+              className={expanded ? "block h-full w-full" : "block h-auto w-full"}
               role="group"
               aria-label="Map of Pennsylvania counties, utility territories, and reported data center projects"
             >
@@ -479,9 +687,78 @@ export function PaMap({ zoneStats }: { zoneStats?: Partial<Record<ZoneName, Zone
                 {hover.text}
               </div>
             )}
+
+            {!expanded && (
+              <div className="absolute top-2 right-2 z-10">
+                <MapButton label="Enlarge map" onClick={openExpanded} buttonRef={enlargeRef}>
+                  <ExpandIcon />
+                </MapButton>
+              </div>
+            )}
+
+            {expanded && (
+              <>
+                <div className="absolute top-3 left-3 z-20 flex max-w-[calc(100%-11.5rem)] flex-wrap gap-2">
+                  <Toggle pressed={showUtilities} onClick={() => setShowUtilities((v) => !v)} label="Territories" />
+                  <Toggle pressed={showDc} onClick={() => setShowDc((v) => !v)} label="Projects" />
+                  <Toggle pressed={showPlants} onClick={() => setShowPlants((v) => !v)} label="Plants" />
+                </div>
+                <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5">
+                  <MapButton label="Zoom out" onClick={() => zoomAt(0.5, 0.5, 1 / 1.6)}>
+                    <MinusIcon />
+                  </MapButton>
+                  <MapButton label="Zoom in" onClick={() => zoomAt(0.5, 0.5, 1.6)}>
+                    <PlusIcon />
+                  </MapButton>
+                  <MapButton label="Reset view" onClick={() => setUserView(null)}>
+                    <ResetIcon />
+                  </MapButton>
+                  <MapButton label="Close enlarged map" onClick={closeExpanded} buttonRef={closeRef}>
+                    <CloseIcon />
+                  </MapButton>
+                </div>
+                <div className="absolute inset-x-3 bottom-3 z-20 flex flex-col items-start gap-2">
+                  {selectionLabel && (
+                    <div
+                      className="flex max-w-full items-center gap-2.5 rounded-lg border py-1.5 pr-1.5 pl-3 text-[0.85rem]"
+                      style={{ background: "var(--surface-1)", borderColor: "var(--baseline)" }}
+                    >
+                      {selectedDc && <StatusIcon status={selectedDc.statusCategory} />}
+                      <span className="min-w-0 truncate font-semibold text-[var(--ink-1)]">{selectionLabel}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          closeExpanded();
+                          requestAnimationFrame(() => asideRef.current?.scrollIntoView({ block: "start" }));
+                        }}
+                        className="shrink-0 rounded-md border px-2.5 py-1 text-[0.8rem] font-medium hover:border-[var(--ink-2)]"
+                        style={{ borderColor: "var(--baseline)", color: "var(--ink-1)" }}
+                      >
+                        Details
+                      </button>
+                    </div>
+                  )}
+                  <div
+                    className="flex max-w-full flex-wrap items-center gap-x-3.5 gap-y-1 rounded-lg border px-3 py-2 text-[0.75rem]"
+                    style={{ background: "var(--surface-1)", borderColor: "var(--baseline)", color: "var(--ink-2)" }}
+                  >
+                    {STATUS_ORDER.map((st) => (
+                      <span key={st} className="inline-flex items-center gap-1.5">
+                        <StatusIcon status={st} size={11} />
+                        {STATUS[st].label}
+                      </span>
+                    ))}
+                    <span className="hidden sm:inline" style={{ color: "var(--ink-muted)" }}>
+                      Scroll to zoom, drag to pan
+                    </span>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
           </div>
 
-          {zoomed && (
+          {zoomed && !expanded && (
             <p className="mt-2 text-[0.85rem]" style={{ color: "var(--ink-2)" }}>
               Zoomed to the selected project.{" "}
               <button type="button" onClick={() => setRings(false)} className="underline underline-offset-2 hover:text-[var(--blue)]">
@@ -502,7 +779,8 @@ export function PaMap({ zoneStats }: { zoneStats?: Partial<Record<ZoneName, Zone
         </div>
 
         <aside
-          className="min-w-0 rounded-[10px] border p-5 lg:self-start"
+          ref={asideRef}
+          className="min-w-0 scroll-mt-20 rounded-[10px] border p-5 lg:self-start"
           style={{ background: "var(--surface-1)", borderColor: "var(--border)" }}
           aria-live="polite"
         >
@@ -535,6 +813,32 @@ export function PaMap({ zoneStats }: { zoneStats?: Partial<Record<ZoneName, Zone
         <ProjectTable rows={visible} selectedId={selectedId} onSelect={pick} />
       </section>
     </div>
+  );
+}
+
+function MapButton({
+  label,
+  onClick,
+  children,
+  buttonRef,
+}: {
+  label: string;
+  onClick: () => void;
+  children: React.ReactNode;
+  buttonRef?: React.Ref<HTMLButtonElement>;
+}) {
+  return (
+    <button
+      ref={buttonRef}
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      className="grid size-9 place-items-center rounded-md border transition-colors hover:border-[var(--ink-2)] hover:text-[var(--ink-1)]"
+      style={{ background: "var(--surface-1)", borderColor: "var(--baseline)", color: "var(--ink-2)" }}
+    >
+      {children}
+    </button>
   );
 }
 

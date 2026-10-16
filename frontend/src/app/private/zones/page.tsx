@@ -10,6 +10,8 @@ import {
 } from "@/lib/queries/pjm";
 import { ChartCard, StatsGrid, StatTile } from "@/components/ChartCard";
 import { LineChart, ChartLegend } from "@/components/LineChart";
+import { FlagInfo } from "@/components/FlagInfo";
+import { summarizeFlags } from "@/lib/flagSummary";
 
 
 function fmtPrice(v: number) {
@@ -32,6 +34,18 @@ export default async function ZonesPage({ searchParams }: PageProps<"/private/zo
     getZoneAnomalyLog(zone, 100),
     getAllZoneAnomalyCounts(),
   ]);
+
+  const lmpSeries = [
+    { key: "actual", color: "var(--orange)", label: "Actual" },
+    { key: "forecast", color: "var(--aqua)", label: "Forecast" },
+  ];
+  const residualSeries = [{ key: "residual", color: "var(--blue)", label: "Residual" }];
+  const priceFlags = summarizeFlags(
+    lmp.filter((p) => p.forecast !== null).map((p) => ({ t: p.t, flagged: p.flagged, actual: p.actual })),
+  );
+  const residualFlags = summarizeFlags(
+    residuals.map((p) => ({ t: p.t, flagged: p.flagged, residual: p.residual })),
+  );
 
   return (
     <main className="mx-auto w-full max-w-[1100px] px-4 py-12">
@@ -81,24 +95,20 @@ export default async function ZonesPage({ searchParams }: PageProps<"/private/zo
             />
           }
           footnote="The most recent prices are PJM's provisional figures. PJM revises them when it verifies them, usually the next business day."
+          info={<FlagInfo zone={zone} summary={priceFlags} basis="price" />}
+          infoLabel="What the red dots mean"
+          expanded={<LineChart data={lmp} series={lmpSeries} flagKey="flagged" yFormat="usd" fill zoomable />}
         >
-          <LineChart
-            data={lmp}
-            series={[
-              { key: "actual", color: "var(--orange)", label: "Actual" },
-              { key: "forecast", color: "var(--aqua)", label: "Forecast" },
-            ]}
-            flagKey="flagged"
-            yFormat="usd"
-          />
+          <LineChart data={lmp} series={lmpSeries} flagKey="flagged" yFormat="usd" />
         </ChartCard>
-        <ChartCard title={`Forecast residuals (${zone})`} meta="5-minute, 7 days">
-          <LineChart
-            data={residuals}
-            series={[{ key: "residual", color: "var(--blue)", label: "Residual" }]}
-            flagKey="flagged"
-            yFormat="usd"
-          />
+        <ChartCard
+          title={`Forecast residuals (${zone})`}
+          meta="5-minute, 7 days"
+          info={<FlagInfo zone={zone} summary={residualFlags} basis="residual" />}
+          infoLabel="What the red dots mean"
+          expanded={<LineChart data={residuals} series={residualSeries} flagKey="flagged" yFormat="usd" fill zoomable />}
+        >
+          <LineChart data={residuals} series={residualSeries} flagKey="flagged" yFormat="usd" />
         </ChartCard>
       </div>
 

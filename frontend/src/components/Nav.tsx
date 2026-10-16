@@ -25,12 +25,15 @@ export function Nav() {
   const links = LINKS;
 
   return (
-    <header className="border-b" style={{ borderColor: "var(--border)" }}>
-      <div className="mx-auto flex max-w-[1100px] flex-wrap items-center justify-between gap-x-6 gap-y-1 px-4 py-4">
-        <Link href="/" className="font-bold text-[var(--ink-1)]">
+    <header
+      className="sticky top-0 z-40 border-b"
+      style={{ borderColor: "var(--border)", background: "var(--page)" }}
+    >
+      <div className="mx-auto flex max-w-[1100px] flex-wrap items-center justify-between gap-x-3 gap-y-1 px-4 py-2.5 sm:gap-x-6 sm:py-4">
+        <Link href="/" className="text-[0.95rem] font-bold text-[var(--ink-1)] sm:text-base">
           Grid Watch
         </Link>
-        <nav aria-label="Primary" className="flex gap-5 text-sm">
+        <nav aria-label="Primary" className="flex gap-2.5 text-[0.8rem] sm:gap-5 sm:text-sm">
           {links.map((l) => {
             const active = l.match(pathname);
             return (

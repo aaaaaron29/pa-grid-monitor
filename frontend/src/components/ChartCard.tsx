@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ExpandableCard } from "@/components/ExpandableCard";
 
 export function ChartCard({
   title,
@@ -6,13 +7,36 @@ export function ChartCard({
   children,
   legend,
   footnote,
+  expanded,
+  info,
+  infoLabel,
 }: {
   title: string;
   meta: string;
   children: ReactNode;
   legend?: ReactNode;
   footnote?: ReactNode;
+  /** Opt in to an Enlarge button: the same chart sized to fill the screen. */
+  expanded?: ReactNode;
+  /** Opt in to an info button in the bottom-right corner. */
+  info?: ReactNode;
+  infoLabel?: string;
 }) {
+  if (expanded || info) {
+    return (
+      <ExpandableCard
+        title={title}
+        meta={meta}
+        expanded={expanded}
+        legend={legend}
+        footnote={footnote}
+        info={info}
+        infoLabel={infoLabel}
+      >
+        {children}
+      </ExpandableCard>
+    );
+  }
   return (
     <section
       className="min-w-0 rounded-[10px] border p-5"
