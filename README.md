@@ -9,8 +9,8 @@ stress beside them.
 **Status.** The pipeline (ingestion, Kafka, Postgres, two inference services, Prometheus,
 Grafana) is built and CI-verified end to end, and the Kubernetes manifests are validated
 against a real cluster in CI. The frontend is built and deployed. The pipeline currently runs
-on a single local machine rather than a cluster, so the live site's private pages are only as
-fresh as the last hourly sync from that machine. The full correlation layer between grid
+on a single small VPS under Docker Compose ([deploy/vps/](deploy/vps/)) rather than a cluster,
+so the live site's private pages are only as fresh as the last hourly sync from that server. The full correlation layer between grid
 stress and data center interconnection activity is not built.
 
 ## What it does
@@ -107,13 +107,14 @@ Full reasoning, including what is deliberately *not* claimed, is in
   `scripts/sync_to_neon.py` copies new rows to a Neon database on an hourly schedule. Neon's
   free plan would run out of compute hours if the pipeline wrote to it directly every five
   minutes. See ARCHITECTURE.md for the reasoning.
-- **Keeping it running (Windows):** `scripts/windows/install_watchdog.ps1` registers a scheduled
-  task that checks every two minutes and at logon. It starts Postgres, Kafka and the eight
-  pipeline processes if any are down, restarts stuck ones, alerts when a data stream stops
-  arriving (Windows notification, and a phone push if `WATCHDOG_NTFY_TOPIC` is set in `.env`),
+- **On a server:** [deploy/vps/](deploy/vps/) is the production setup: a Compose stack that
+  publishes nothing but SSH, restarts itself, and is checked every five minutes by `ops.sh`,
+  which starts what is down, restarts what is stuck, alerts when a data stream stops arriving,
   and once a day re-pulls the last few days from PJM's verified feed and re-scores them, which
-  closes the gaps an outage leaves. `scripts/windows/watchdog.ps1 -Status` prints the current
-  state without changing anything.
+  closes the gaps an outage leaves. Its README has the setup and cutover steps.
+- **On a Windows machine:** `scripts/windows/install_watchdog.ps1` registers a scheduled task
+  that does the same job for a pipeline run by hand, and `scripts/windows/watchdog.ps1 -Status`
+  prints the state without changing anything.
 - **Frontend:** `cd frontend && npm install && npm run dev`, with `DATABASE_URL` and
   `PRIVATE_PASSCODE` set in `frontend/.env.local` (see `.env.example`; gitignored, never
   commit it). The public map needs neither.

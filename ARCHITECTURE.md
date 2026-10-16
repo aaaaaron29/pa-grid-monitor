@@ -1070,6 +1070,33 @@ README.md             documents the public/private data split explicitly for any
    interactive, like the Neon sync), so sleep, a reboot without sign-in, or a power cut still
    stops everything until the machine is back, and it cannot alert while the machine is off.
 
+   **VPS deployment (2026-10-16).** The pipeline now runs on a rented VPS instead of the
+   local machine (Contabo Cloud VPS 4: 4 vCPU, 8 GB RAM, Ubuntu 26.04, EU region, about $6.60
+   a month), replacing the Oracle plan in Sections 2, 3 and 5, which stays unbuilt because
+   Always Free capacity was unavailable. Everything is in `deploy/vps/`. The stack is the same
+   services as the repo-root Compose file, with these differences: nothing is published to the
+   host (Docker publishes ports around the host firewall, so a stray `ports:` line would put
+   Postgres or Kafka on the internet), every service restarts on its own, logs are rotated,
+   Postgres and Kafka use named volumes, and Prometheus and Grafana are gone because the
+   website replaced them. Only SSH is reachable: key-only, behind a firewall and fail2ban.
+   One bug the move would have caused is worth recording. PJM allows 6 requests a minute per
+   key, and the clients enforce that with a lock file in the temp directory shared by every
+   process on the host (`ingestion/pjm_poller/client.py`). Containers each have their own
+   `/tmp`, so the LMP poller, the load poller and the gap heal would each have believed they
+   had the whole allowance. Every container that calls PJM now sets `TMPDIR` to one shared
+   volume, and the two pollers' zone calls were seen spaced about 33 seconds apart, so the
+   limit is shared. Cron runs `ops.sh`: a check every five minutes (the Linux counterpart of
+   the Windows watchdog, with the same stall limits), the hourly Neon sync, and the daily gap
+   heal. Alerts reach the log, and optionally an ntfy.sh topic and a healthchecks.io
+   heartbeat, the only signal that fires if the server itself dies; neither was configured at
+   cutover, so a dead server is not yet noticed. The model artifacts are copied to the server
+   by hand and mounted, never baked into an image. The cutover stopped the local pipeline,
+   took a `pg_dump`, restored it (row counts matched exactly on all five tables), and
+   started the server, because only one machine may poll PJM with the key at a time and the
+   verified PJM feed reaches back only about six months, so the existing history had to be
+   carried across rather than re-fetched. The local pipeline processes and Windows tasks are
+   stopped; local Postgres and Kafka were left running for a day as a way back.
+
 ## 10. Steps to complete before building starts
 
 These are the only external dependencies: everything else (Kafka, Postgres, Grafana, k3s,
