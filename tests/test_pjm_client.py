@@ -247,7 +247,7 @@ def test_two_real_processes_share_one_request_clock(tmp_path):
         """
         import sys, time
         import ingestion.pjm_poller.client as c
-        c._MIN_SECONDS_BETWEEN_REQUESTS = 0.4
+        c._MIN_SECONDS_BETWEEN_REQUESTS = 0.6
         stamps = []
         for _ in range(3):
             c._throttle()
@@ -271,5 +271,7 @@ def test_two_real_processes_share_one_request_clock(tmp_path):
     stamps.sort()
     gaps = [b - a for a, b in zip(stamps, stamps[1:], strict=False)]
     assert len(stamps) == 6
-    # 0.35 rather than 0.4 to tolerate timer granularity; unshared clocks would give ~0.
-    assert min(gaps) >= 0.35, gaps
+    # The stamps are taken after _throttle() returns, so a busy CI runner can delay one by tens
+    # of milliseconds and shrink the measured gap (seen: 0.31 against a 0.4 interval). Allow a
+    # third of the interval; unshared clocks would give a gap near zero.
+    assert min(gaps) >= 0.4, gaps
