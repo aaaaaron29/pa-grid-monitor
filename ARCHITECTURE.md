@@ -1160,7 +1160,12 @@ README.md             documents the public/private data split explicitly for any
    Kafka reachable; the manifests had been called "verified against a real cluster" while the
    broker was crash-looping. The Service now sets `publishNotReadyAddresses`, the probes are
    TCP checks with a startup probe, and the job waits for `kafka-0` to be Ready before the
-   replay.
+   replay. With the broker up, the next run showed a fourth problem: nothing was consumed. The
+   broker log was full of `INVALID_REPLICATION_FACTOR` for `__consumer_offsets`. On a single
+   broker the internal topics cannot have the default three replicas, and the manifest did not
+   lower them, so no consumer group could ever join and every consumer sat idle while looking
+   healthy. The VPS stack already set these; the Kubernetes manifest and the root Compose file
+   did not, and both now do.
 
    **Pipeline health page.** `/private/pipeline` shows whether the pipeline is delivering,
    because the website reads only the Neon copy and a dead server otherwise looks the same as
