@@ -38,6 +38,11 @@ METRICS = f"{INFERENCE_URL}:9100/metrics"
 
 READY_TIMEOUT = 240
 ROW_TIMEOUT = 60
+# The first row can take far longer than the rest. CI restarts the consumer just before this
+# runs (to shorten its batch wait), and a consumer that is killed rather than shut down leaves
+# its partition assigned to it until the group's session timeout (45 seconds by default), so the
+# replacement reads nothing until then.
+FIRST_ROW_TIMEOUT = 240
 DRAIN_TIMEOUT = 300
 DUPLICATES = 24
 
@@ -116,7 +121,7 @@ def fetch_scores(conn: psycopg.Connection) -> dict[int, dict]:
 
 
 def publish(producer, indices: list[int], conn: psycopg.Connection, *, pace: bool) -> None:
-    for i in indices:
+    for n, i in enumerate(indices):
         row = data.row(i, datetime.now(UTC), verified=False)
         key = f"{data.ZONE}:{row['period_start'].isoformat()}"
         produce_row(producer, TOPIC_PJM_RAW, key=key, row=row)
@@ -127,7 +132,7 @@ def publish(producer, indices: list[int], conn: psycopg.Connection, *, pace: boo
                     "SELECT 1 FROM pjm_lmp_readings WHERE zone = %s AND period_start = %s",
                     (data.ZONE, data.when(i)),
                 ).fetchone(),
-                ROW_TIMEOUT,
+                FIRST_ROW_TIMEOUT if n == 0 else ROW_TIMEOUT,
                 f"interval {i - data.LIVE_START} to reach Postgres",
             )
 
