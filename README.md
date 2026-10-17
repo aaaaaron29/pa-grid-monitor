@@ -123,6 +123,8 @@ Full reasoning, including what is deliberately *not* claimed, is in
 - **Frontend:** `cd frontend && npm install && npm run dev`, with `DATABASE_URL` and
   `PRIVATE_PASSCODE` set in `frontend/.env.local` (see `.env.example`; gitignored, never
   commit it). The public map needs neither.
+- **Shipping a change:** [SHIPPING.md](SHIPPING.md) is the checklist for committing, updating
+  these docs, pushing, watching CI and deploying to the website, Neon and the server.
 - **Checks:** `pytest`, `ruff check .`, and in `frontend/`: `npx tsc --noEmit`, `npm run lint`
   and `npm run build`.
 

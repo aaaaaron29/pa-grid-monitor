@@ -1142,8 +1142,9 @@ README.md             documents the public/private data split explicitly for any
    against the old service code, the scenario declined 102 intervals after the outage instead
    of 12. Two things are not changed and should be known: `model/train.py` and the evaluation
    scripts still drop excluded rows before shifting, so the artifacts were fitted on residuals
-   that are slightly off near holes (retraining would remove that), and the fix is in the
-   repository but not yet running on the VPS. A second, smaller finding: `score_since`, which
+   that are slightly off near holes (retraining would remove that). The fix was deployed to
+   the VPS on 2026-10-16: after the restart the first new reading was scored with the new
+   code, with no errors in the service logs. A second, smaller finding: `score_since`, which
    the heal uses, is documented as equivalent to scoring each point live, but the flatline rule
    measures a whole run, so in batch it also flags the first 11 rows of a stuck stretch that
    live scoring flagged only later. That difference is now pinned by a test and described in the
